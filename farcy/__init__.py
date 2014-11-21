@@ -2,12 +2,14 @@
 
 """Farcy, a code review bot for github pull requests.
 
-Usage: farcy.py WATCH_OWNER WATCH_REPOSITORY
+Usage: farcy.py [-D | --logging=LEVEL]  WATCH_OWNER WATCH_REPOSITORY
 
 Options:
 
-  -h, --help  Show this screen.
-  --version  Show the program's version.
+  -D               Enable all log output (shortcut for: --logging=DEBUG).
+  --logging=LEVEL  Specify the price log level to output.
+  -h, --help       Show this screen.
+  --version        Show the program's version.
 
 """
 
@@ -18,6 +20,7 @@ from github3 import GitHub
 from github3.models import GitHubError
 from subprocess import CalledProcessError, check_output
 import json
+import logging
 import os
 import re
 import sys
@@ -92,8 +95,8 @@ class Farcy(object):
                 return gh
             except GitHubError as exc:
                 if exc.code != 401:
-                    raise
-                print('Invalid saved credential file.')
+                    raise  # Unexpected and unhandled exception
+                sys.stderr.write('Invalid saved credential file.\n')
 
         from getpass import getpass
         from github3 import authorize
@@ -105,8 +108,9 @@ class Farcy(object):
                 'Farcy Code Reviewer',
                 two_factor_callback=lambda: Farcy.prompt('Two factor token'))
         except GitHubError as exc:
-            print(exc)
-            sys.exit(1)
+            if exc.code == 401:
+                raise FarcyException(exc.message)
+            raise  # Unexpected and unhandled exception
 
         with open(credential_file, 'w') as fd:
             fd.write('{0}\n{1}\n'.format(auth.token, auth.id))
@@ -119,9 +123,27 @@ class Farcy(object):
         sys.stdout.flush()
         return sys.stdin.readline().strip()
 
-    def __init__(self, owner, repository):
+    def __init__(self, owner, repository, log_level=None):
         """Initialize and instance of Farcy that monitors owner/repository."""
+        # Configure logging
+        self.log = logging.getLogger('farcy')
+        if log_level:
+            try:
+                level = int(getattr(logging, log_level.upper()))
+            except (AttributeError, ValueError):
+                raise FarcyException('Invalid log level: {0}'
+                                     .format(log_level))
+
+            self.log.setLevel(level)
+            self.log.addHandler(logging.StreamHandler())
+        else:
+            self.log.setLevel(logging.NOTSET)
+
+        # Initialize the repository to monitor
         self.repo = self.get_session().repository(owner, repository)
+        if self.repo is None:
+            raise FarcyException('Invalid owner or repository name: {0}/{1}'
+                                 .format(owner, repository))
         # Keep track of open pull requests
         self.open_prs = {}
         for pr in self.repo.iter_pulls(state='all'):
@@ -158,7 +180,7 @@ class Farcy(object):
 
             # Sleep the amount of time indicated in the API response
             sleep_time = int(itr.last_response.headers['X-Poll-Interval'])
-            print('Sleeping for {0} seconds.'.format(sleep_time))
+            self.log.debug('Sleeping for {0} seconds.'.format(sleep_time))
             time.sleep(sleep_time)
 
     def handle_pr(self, pr):
@@ -227,8 +249,14 @@ class Farcy(object):
 
     def run(self):
         """Run the bot until ctrl+c is received."""
+        self.log.info('Monitoring {0}...'.format(self.repo.html_url))
         for event in self.event_iterator():
             getattr(self, event.type)(event)
+
+
+class FarcyException(Exception):
+
+    """Farcy root exception class."""
 
 
 def check_file(stream):
@@ -248,7 +276,16 @@ def check_file(stream):
 def main():
     """Provide an entry point into Farcy."""
     args = docopt(__doc__, version=VERSION_STR)
-    Farcy(args['WATCH_OWNER'], args['WATCH_REPOSITORY']).run()
+    debug = 'DEBUG' if args['-D'] else args['--logging']
+
+    try:
+        Farcy(args['WATCH_OWNER'], args['WATCH_REPOSITORY'], debug).run()
+    except KeyboardInterrupt:
+        sys.stderr.write('Farcy shutting down. Goodbye!\n')
+        return 0
+    except FarcyException as exc:
+        sys.stderr.write(exc.message + '\n')
+        return 1
 
 
 if __name__ == '__main__':
