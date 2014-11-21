@@ -14,18 +14,19 @@ Options:
 """
 
 from __future__ import print_function
+from collections import defaultdict
 from datetime import datetime, timedelta, tzinfo
 from docopt import docopt
 from github3 import GitHub
 from github3.models import GitHubError
-from subprocess import CalledProcessError, check_output
-import json
 import logging
 import os
 import re
+import stat
 import sys
 import tempfile
 import time
+from .exceptions import FarcyException, HandlerException
 
 
 """
@@ -124,9 +125,9 @@ class Farcy(object):
         return sys.stdin.readline().strip()
 
     def __init__(self, owner, repository, log_level=None):
-        """Initialize and instance of Farcy that monitors owner/repository."""
+        """Initialize an instance of Farcy that monitors owner/repository."""
         # Configure logging
-        self.log = logging.getLogger('farcy')
+        self.log = logging.getLogger(__name__)
         if log_level:
             try:
                 level = int(getattr(logging, log_level.upper()))
@@ -139,6 +140,8 @@ class Farcy(object):
         else:
             self.log.setLevel(logging.NOTSET)
 
+        self._load_handlers()
+
         # Initialize the repository to monitor
         self.repo = self.get_session().repository(owner, repository)
         if self.repo is None:
@@ -149,6 +152,17 @@ class Farcy(object):
         for pr in self.repo.iter_pulls(state='all'):
             if pr.state == 'open':
                 self.open_prs[pr.head.ref] = pr
+
+    def _load_handlers(self):
+        from . import handlers
+        self._ext_to_handler = defaultdict(list)
+        for handler in (handlers.Rubocop,):
+            try:
+                handler_inst = handler()
+            except HandlerException:
+                continue
+            for ext in handler.EXTS:
+                self._ext_to_handler[ext].append(handler_inst)
 
     def event_iterator(self):
         """Yield repository events in order."""
@@ -183,6 +197,24 @@ class Farcy(object):
             self.log.debug('Sleeping for {0} seconds.'.format(sleep_time))
             time.sleep(sleep_time)
 
+    def get_issues(self, pfile):
+        """Return a dictionary of issues for the file."""
+        handlers = self.get_handler('.rb')  # Use the actual file extension
+        if not handlers:  # Do nothing if there are no handlers
+            return {}
+        retval = {}
+        stream = pfile._session.get(pfile.raw_url, stream=True)
+        with tempfile.NamedTemporaryFile() as fp:
+            for chunk in stream.iter_content(chunk_size=1024):
+                if chunk:
+                    fp.write(chunk)
+                    fp.flush()
+                # Prevent modification by handlers
+                os.chmod(fp.name, stat.S_IRUSR)
+            for handler in handlers:
+                retval.update(handler.process(fp.name))
+        return retval
+
     def handle_pr(self, pr):
         """Provide code review on pull request."""
         if pr is None or pr.state != 'open':  # Ignore closed PRs
@@ -204,7 +236,7 @@ class Farcy(object):
                 print(pfile.status)
                 assert False
 
-            issues = check_file(pr._session.get(pfile.raw_url, stream=True))
+            issues = self.get_issues(pfile)
             by_line = {}
             for offense in issues.get('files', [{}])[0].get('offenses', []):
                 lineno = offense['location']['line']
@@ -252,25 +284,6 @@ class Farcy(object):
         self.log.info('Monitoring {0}...'.format(self.repo.html_url))
         for event in self.event_iterator():
             getattr(self, event.type)(event)
-
-
-class FarcyException(Exception):
-
-    """Farcy root exception class."""
-
-
-def check_file(stream):
-    """Run rubocop on the file provided by stream."""
-    with tempfile.NamedTemporaryFile() as fp:
-        for chunk in stream.iter_content(chunk_size=1024):
-            if chunk:
-                fp.write(chunk)
-                fp.flush()
-        try:
-            output = check_output(['rubocop', '-f', 'j', fp.name])
-        except CalledProcessError as exc:
-            output = exc.output
-        return json.loads(output)
 
 
 def main():
