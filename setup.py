@@ -29,7 +29,7 @@ setup(name=PACKAGE_NAME,
       description='A code review bot for github pull requests',
       entry_points={'console_scripts':
                     ['{0} = {0}:main'.format(PACKAGE_NAME)]},
-      extras_require={'python': []},
+      extras_require={'python': ['flake8 >= 2.2.5', 'pep257 >= 0.3.2']},
       install_requires=['botocore >= 0.74.0',
                         'docopt >= 0.6.2',
                         'github3.py >= 0.9.3'],
