@@ -18,7 +18,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta, tzinfo
 from docopt import docopt
 from github3 import GitHub
-from github3.models import GitHubError
 from update_checker import UpdateChecker
 import logging
 import os
@@ -41,6 +40,21 @@ TODO:
 __version__ = '0.1b'
 NUMBER_RE = re.compile('(\d+)')
 VERSION_STR = 'farcy v{0}'.format(__version__)
+
+
+# Hack to be forward compatible with github3 v 1.0
+# Delete once github3 v1.0 is released
+from github3 import __version__ as gh_version
+if gh_version.startswith('0'):
+    from github3.repos import Repository
+    Repository.pull_requests = Repository.iter_pulls
+    Repository.events = Repository.iter_events
+    del Repository
+    from github3.pulls import PullRequest
+    PullRequest.files = PullRequest.iter_files
+    from github3.models import GitHubError
+else:
+    from github3.exceptions import GitHubError
 
 
 class UTC(tzinfo):
@@ -94,7 +108,7 @@ class Farcy(object):
                 token = fd.readline().strip()
             gh = GitHub(token=token)
             try:  # Test connection before starting
-                gh.is_subscribed('github', 'gitignore')
+                gh.is_starred('github', 'gitignore')
                 return gh
             except GitHubError as exc:
                 if exc.code != 401:
@@ -151,7 +165,7 @@ class Farcy(object):
                                  .format(owner, repository))
         # Keep track of open pull requests
         self.open_prs = {}
-        for pr in self.repo.iter_pulls(state='all'):
+        for pr in self.repo.pull_requests(state='all'):
             if pr.state == 'open':
                 self.open_prs[pr.head.ref] = pr
 
@@ -177,10 +191,11 @@ class Farcy(object):
         """Yield repository events in order."""
         id_marker = None
         etag = None
+        sleep_time = 8  # This value will be overwritten
         while True:
             # Fetch events
             events = []
-            itr = self.repo.iter_events(etag=etag)
+            itr = self.repo.events(etag=etag)
             itr_first_id = None
             for event in itr:
                 itr_first_id = itr_first_id or int(event.id)
@@ -202,13 +217,16 @@ class Farcy(object):
                 yield event
 
             # Sleep the amount of time indicated in the API response
-            sleep_time = int(itr.last_response.headers['X-Poll-Interval'])
+            sleep_time = int(itr.last_response.headers.get('X-Poll-Interval',
+                                                           sleep_time))
+            sleep_time = 8
             self.log.debug('Sleeping for {0} seconds.'.format(sleep_time))
             time.sleep(sleep_time)
 
     def get_issues(self, pfile):
         """Return a dictionary of issues for the file."""
-        handlers = self.get_handler('.rb')  # Use the actual file extension
+        ext = os.path.splitext(pfile.filename)
+        handlers = self._ext_to_handler.get(ext)
         if not handlers:  # Do nothing if there are no handlers
             return {}
         retval = {}
@@ -227,16 +245,29 @@ class Farcy(object):
     def handle_pr(self, pr):
         """Provide code review on pull request."""
         if pr is None or pr.state != 'open':  # Ignore closed PRs
+            self.log.info('Handle PR called on {0} pull request: {1}'
+                          .format(pr.state, pr))
             return
-        sha = list(pr.iter_commits())[-1].sha
+        self.log.info('Handling PR: {0}'.format(pr))
+
+        if gh_version.startswith('0'):
+            # TODO: Remove this with github3 v1.0
+            commits = pr.iter_commits
+        else:
+            commits = pr.commits
+        sha = list(commits())[-1].sha
         issue_count = 0
-        for pfile in pr.iter_files():
+        did_work = True
+        for pfile in pr.files():
             added = None
-            if pfile.status == 'deleted' or not pfile.filename.endswith('.rb'):
-                continue  # Ignore deleted or non-ruby files
-            elif pfile.status in ('added', 'renamed'):
-                if pfile.patch is None:
-                    continue  # Ignore addition of empty files
+            if pfile.status == 'deleted':  # Ignore deleted files
+                self.log.debug('Ignoring deleted file: {0}'
+                               .format(pfile.filename))
+                continue
+            elif pfile.patch is None:  # Ignore files without changes
+                self.log.debug('Ignoring {0} file without change: {1}'
+                               .format(pfile.status, pfile.filename))
+                continue
             elif pfile.status == 'modified':
                 # Only report issues on the changed lines
                 added = self.added_lines(pfile.patch)
@@ -244,6 +275,7 @@ class Farcy(object):
             else:
                 print(pfile.status)
                 assert False
+            did_work = True
 
             issues = self.get_issues(pfile)
             by_line = {}
@@ -262,20 +294,26 @@ class Farcy(object):
                                                   pfile.filename, position)
                 print(vars(retval))
 
-        msg = '_{0}_ {{0}}\n'.format(VERSION_STR)
+        msg = '_{0}_ {{0}}'.format(VERSION_STR)
         if issue_count > 0:
             msg = msg.format('found {0} issues'.format(issue_count))
         else:
             msg = msg.format(':+1:')
-        self.repo.issue(pr.number).create_comment(msg)
+        if did_work:
+            retval = self.repo.issue(pr.number).create_comment(msg)
+            self.log.info('Commented "{0}": {1}'.format(msg, retval.html_url))
 
     def PullRequestEvent(self, event):
         """Check commits on new pull requests."""
         pr = event.payload['pull_request']
-        pr._session = self.repo._session  # HACK: Add session object
         action = event.payload['action']
+        self.log.debug('{0} on {1}'.format(action, pr.head.ref))
         if action == 'closed':
-            del self.open_prs[pr.head.ref]
+            if pr.head.ref in self.open_prs:
+                del self.open_prs[pr.head.ref]
+            else:
+                self.log.warn('open_prs did not contain {0}'
+                              .format(pr.head.ref))
         elif action == 'opened':
             self.open_prs[pr.head.ref] = pr
             self.handle_pr(pr)
