@@ -3,6 +3,7 @@
 from subprocess import CalledProcessError, check_output
 import json
 import logging
+from update_checker import parse_version
 from .exceptions import HandlerException
 
 
@@ -19,10 +20,10 @@ class ExtHandler(object):
     """An abstract class that provides the file handler interface.
 
     Subclasses must define the extension(s) that the class provides feedback
-    upon via the ``EXTS`` class method.
+    upon via the ``EXTENSIONS`` class method.
     """
 
-    EXTS = []
+    EXTENSIONS = []
 
     def __init__(self, on_demand=False):
         """A handler's constructor is called only once upon farcy start-up.
@@ -71,7 +72,7 @@ class Rubocop(ExtHandler):
 
     """Provides feedback for ruby files using rubocop."""
 
-    EXTS = ['.rb']
+    EXTENSIONS = ['.rb']
 
     def assert_usable(self):
         """Test that rubocop is available and its version is sufficient."""
@@ -81,9 +82,7 @@ class Rubocop(ExtHandler):
             if exc.errno == 2:
                 raise HandlerException('rubocop is not installed')
             raise  # Unexpected and unhandled exception
-        if version:
-            raise HandlerException('Invalid version of rubocop: {0}'
-                                   .format(version))
+        verify_version('rubocop', '0.27', version)
 
     def _process(self, filename):
         try:
@@ -91,3 +90,32 @@ class Rubocop(ExtHandler):
         except CalledProcessError as exc:
             output = exc.output
         return json.loads(output)
+
+
+def verify_version(name, expected, installed, exact=False):
+    """Raise HandlerException if the installed version does not match.
+
+    :param name: The package name (for exception purposes)
+    :param expected: The expected version number. Is a minimum if ``exact`` is
+        false.
+    :param installed: The installed version number.
+    :param exact: Raise HandlerException when there is not an exact match. Note
+        that 0.27.0 is considered exact to 0.27.
+    """
+    installed = installed.strip()
+    if ' ' in installed:
+        logging.getLogger(__name__).debug('Version string contains space: {0}'
+                                          .format(installed))
+    exp = parse_version(expected)
+    inp = parse_version(installed)
+    op = None
+    if exact and exp != inp:
+        op = ''
+    elif exp > inp:
+        op = '>= '
+
+    if op is not None:
+        raise HandlerException('Expected {package} {op}{expected}, found '
+                               '{installed}'
+                               .format(package=name, op=op, expected=expected,
+                                       installed=installed))

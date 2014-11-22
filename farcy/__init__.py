@@ -2,7 +2,7 @@
 
 """Farcy, a code review bot for github pull requests.
 
-Usage: farcy.py [-D | --logging=LEVEL]  WATCH_OWNER WATCH_REPOSITORY
+Usage: farcy.py [-D | --logging=LEVEL] WATCH_OWNER WATCH_REPOSITORY
 
 Options:
 
@@ -19,6 +19,7 @@ from datetime import datetime, timedelta, tzinfo
 from docopt import docopt
 from github3 import GitHub
 from github3.models import GitHubError
+from update_checker import UpdateChecker
 import logging
 import os
 import re
@@ -63,6 +64,7 @@ class Farcy(object):
     """A bot to automate some code-review processes on GitHub pull requests."""
 
     EVENTS = {'PullRequestEvent', 'PushEvent'}
+    _update_checked = False
 
     @staticmethod
     def added_lines(patch):
@@ -153,6 +155,13 @@ class Farcy(object):
             if pr.state == 'open':
                 self.open_prs[pr.head.ref] = pr
 
+        # Check for farcy package updates
+        if not self._update_checked:
+            result = UpdateChecker().check(__name__, __version__)
+            if result:
+                self.log.info(result)
+            self._update_checked = True
+
     def _load_handlers(self):
         from . import handlers
         self._ext_to_handler = defaultdict(list)
@@ -161,7 +170,7 @@ class Farcy(object):
                 handler_inst = handler()
             except HandlerException:
                 continue
-            for ext in handler.EXTS:
+            for ext in handler.EXTENSIONS:
                 self._ext_to_handler[ext].append(handler_inst)
 
     def event_iterator(self):
