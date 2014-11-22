@@ -38,5 +38,6 @@ setup(name=PACKAGE_NAME,
       license='Simplified BSD License',
       long_description=README,
       packages=[PACKAGE_NAME],
+      test_suite='test',
       url='https://github.com/appfolio/farcy',
       version=VERSION)

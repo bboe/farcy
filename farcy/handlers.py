@@ -131,7 +131,7 @@ class Flake8(ExtHandler):
     def _process(self, filename):
         return self.execute([self.BINARY, filename])
 
-    def version_callback(version):
+    def version_callback(self, version):
         """Remove the extra version information."""
         return version.split(' ', 1)[0]
 
