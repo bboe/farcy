@@ -1,7 +1,7 @@
 .. _main_page:
 
-Farcy: A code review bot for github pull requests.
-==================================================
+farcy: a code review bot for github pull requests
+=================================================
 
 **Definition**:
 
