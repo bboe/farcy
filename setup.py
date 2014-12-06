@@ -7,7 +7,7 @@ from setuptools import setup
 PACKAGE_NAME = 'farcy'
 
 HERE = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(HERE, 'README.md')) as fp:
+with open(os.path.join(HERE, 'README.rst')) as fp:
     README = fp.read()
 with open(os.path.join(HERE, PACKAGE_NAME, '__init__.py')) as fp:
     VERSION = re.search("__version__ = '([^']+)'", fp.read()).group(1)
