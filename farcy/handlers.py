@@ -34,7 +34,7 @@ class ExtHandler(object):
     def execute(args):
         """Return output of argument execution ignoring status code."""
         try:
-            return check_output(args, stderr=DEVNULL)
+            return check_output(args, stderr=DEVNULL).decode('utf-8')
         except CalledProcessError as exc:
             return exc.output
 
@@ -90,7 +90,8 @@ class ExtHandler(object):
             raise HandlerException('{0} does not have a binary specified.'
                                    .format(self.name))
         try:
-            version = check_output([self.BINARY, '--version'], stderr=DEVNULL)
+            version = (check_output([self.BINARY, '--version'], stderr=DEVNULL)
+                       .decode('utf-8'))
         except OSError as exc:
             if exc.errno == 2:
                 raise HandlerException('{0} is not installed'

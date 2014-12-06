@@ -3,6 +3,9 @@
 farcy: a code review bot for github pull requests
 =================================================
 
+.. image:: https://travis-ci.org/appfolio/farcy.svg?branch=master
+               :target: https://travis-ci.org/appfolio/farcy
+
 **Definition**:
 
     a form of glanders chiefly affecting the skin and superficial lymphatic
