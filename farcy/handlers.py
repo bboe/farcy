@@ -1,10 +1,12 @@
 """Defines handlers for various file types."""
 
+from collections import defaultdict
 from subprocess import CalledProcessError, STDOUT, check_output
-import json
-import logging
 from update_checker import parse_version
 from .exceptions import HandlerException
+import json
+import logging
+import re
 
 
 # src: http://stackoverflow.com/a/11270665/176978
@@ -83,6 +85,14 @@ class ExtHandler(object):
                 raise
             self._plugin_ready = False
 
+    def _regex_parse(self, filename, stderr=None):
+        """Use the sublcasses RE value to parse the returned data."""
+        retval = defaultdict(list)
+        for (lineno, msg) in self.RE.findall(self.execute(
+                [self.BINARY, filename], stderr=stderr)):
+            retval[int(lineno)].append(msg)
+        return retval
+
     def assert_usable(self):
         """Raise HandlerException if the handler is not ready for use."""
         if self.name == 'ExtHandler':
@@ -101,7 +111,11 @@ class ExtHandler(object):
         self.verify_version(self.version_callback(version))
 
     def process(self, filename):
-        """Return the complete results of the handler against the file.
+        """Return a dictionary mapping line numbers to errors.
+
+        The value for each line number in the dictionary should be a list where
+        each item of the list is a string containing an error that occurred on
+        the line.
 
         :param filename: The filename to analyze.
         """
@@ -129,9 +143,10 @@ class Flake8(ExtHandler):
     BINARY = 'flake8'
     BINARY_VERSION = '2.2.3'
     EXTENSIONS = ['.py']
+    RE = re.compile('[^:]+:(\d+):([^\n]+)\n')
 
     def _process(self, filename):
-        return self.execute([self.BINARY, filename])
+        return self._regex_parse(filename)
 
     def version_callback(self, version):
         """Remove the extra version information."""
@@ -145,9 +160,10 @@ class Pep257(ExtHandler):
     BINARY = 'pep257'
     BINARY_VERSION = '0.3.2'
     EXTENSIONS = ['.py']
+    RE = re.compile('[^:]+:(\d+)[^\n]+\n\s+([^\n]+)\n')
 
     def _process(self, filename):
-        return self.execute([self.BINARY, filename], stderr=STDOUT)
+        return self._regex_parse(filename, stderr=STDOUT)
 
 
 class Rubocop(ExtHandler):
@@ -159,4 +175,9 @@ class Rubocop(ExtHandler):
     EXTENSIONS = ['.rb']
 
     def _process(self, filename):
-        return json.loads(self.execute([self.BINARY, '-f', 'j', filename]))
+        data = json.loads(self.execute([self.BINARY, '-f', 'j', filename]))
+        retval = defaultdict(list)
+        for offense in data.get('files', [{}])[0].get('offenses', []):
+            retval[offense['location']['line']].append(
+                '{cop_name}: {message}'.format(**offense))
+        return retval
