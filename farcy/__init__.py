@@ -70,7 +70,7 @@ class UTC(tzinfo):
     utcoffset = lambda x, y: timedelta(0)
 
 
-START_TIME = datetime.now(UTC()) - timedelta(days=1)
+START_TIME = datetime.now(UTC())
 
 
 class Farcy(object):
@@ -152,7 +152,10 @@ class Farcy(object):
                                      .format(log_level))
 
             self.log.setLevel(level)
-            self.log.addHandler(logging.StreamHandler())
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter(
+                '%(asctime)s %(levelname)8s %(message)s', '%Y/%m/%d %H:%M:%S'))
+            self.log.addHandler(handler)
         else:
             self.log.setLevel(logging.NOTSET)
 
@@ -187,11 +190,11 @@ class Farcy(object):
             for ext in handler.EXTENSIONS:
                 self._ext_to_handler[ext].append(handler_inst)
 
-    def event_iterator(self):
+    def events(self):
         """Yield repository events in order."""
         id_marker = None
         etag = None
-        sleep_time = 8  # This value will be overwritten
+        sleep_time = None  # This value will be overwritten
         while True:
             # Fetch events
             events = []
@@ -219,7 +222,6 @@ class Farcy(object):
             # Sleep the amount of time indicated in the API response
             sleep_time = int(itr.last_response.headers.get('X-Poll-Interval',
                                                            sleep_time))
-            sleep_time = 8
             self.log.debug('Sleeping for {0} seconds.'.format(sleep_time))
             time.sleep(sleep_time)
 
@@ -244,18 +246,14 @@ class Farcy(object):
 
     def handle_pr(self, pr):
         """Provide code review on pull request."""
+        pr.refresh()  # Get most recent state
         if pr.state != 'open':  # Ignore closed PRs
-            self.log.info('Handle PR called on {0} pull request: {1}'
-                          .format(pr.state, pr))
+            self.log.info('Handle PR called on {0} PullRequest #{1}'
+                          .format(pr.state, pr.number))
             return
         self.log.info('Handling PR: {0}'.format(pr))
 
-        if gh_version.startswith('0'):
-            # TODO: Remove this with github3 v1.0
-            commits = pr.iter_commits
-        else:
-            commits = pr.commits
-        sha = list(commits())[-1].sha
+        sha = list(pr.commits())[-1].sha
         issue_count = 0
         did_work = True
         for pfile in pr.files():
@@ -307,7 +305,9 @@ class Farcy(object):
         """Check commits on new pull requests."""
         pr = event.payload['pull_request']
         action = event.payload['action']
-        self.log.debug('{0} on {1}'.format(action, pr.head.ref))
+        self.log.debug('PullRequest #{num} {action} on branch {branch}'
+                       .format(action=action, branch=pr.head.ref,
+                               num=pr.number))
         if action == 'closed':
             if pr.head.ref in self.open_prs:
                 del self.open_prs[pr.head.ref]
@@ -330,8 +330,8 @@ class Farcy(object):
 
     def run(self):
         """Run the bot until ctrl+c is received."""
-        self.log.info('Monitoring {0}...'.format(self.repo.html_url))
-        for event in self.event_iterator():
+        self.log.info('Monitoring {0}'.format(self.repo.html_url))
+        for event in self.events():
             getattr(self, event.type)(event)
 
 
