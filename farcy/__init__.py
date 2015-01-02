@@ -190,9 +190,12 @@ class Farcy(object):
                 itr_first_id = itr_first_id or int(event.id)
 
                 # Stop when we've already seen something
-                if id_marker and int(event.id) < id_marker or \
+                if id_marker and int(event.id) <= id_marker or \
                    event.created_at < START_TIME:
                     break
+
+                self.log.debug('EVENT {eid} {time} {etype}'.format(
+                    eid=event.id, time=event.created_at, etype=event.type))
 
                 # Add relevent events in reverse order
                 if event.type in self.EVENTS:
@@ -213,9 +216,10 @@ class Farcy(object):
 
     def get_issues(self, pfile):
         """Return a dictionary of issues for the file."""
-        ext = os.path.splitext(pfile.filename)
+        ext = os.path.splitext(pfile.filename)[1]
         handlers = self._ext_to_handler.get(ext)
         if not handlers:  # Do nothing if there are no handlers
+            self.log.debug('No handlers for extension {0}'.format(ext))
             return {}
         retval = {}
         stream = pfile._session.get(pfile.raw_url, stream=True)
@@ -255,10 +259,12 @@ class Farcy(object):
             elif pfile.status == 'modified':
                 # Only report issues on the changed lines
                 added = self.added_lines(pfile.patch)
-                assert added
+                self.log.debug('Found {0} modified lines in {1}'
+                               .format(len(added), pfile.filename))
             else:
-                print(pfile.status)
-                assert False
+                self.log.critical('Unexpected file status {0} on {1}'
+                                  .format(pfile.status, pfile.filename))
+                continue
             did_work = True
 
             issues = self.get_issues(pfile)
