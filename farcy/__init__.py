@@ -244,7 +244,7 @@ class Farcy(object):
 
     def handle_pr(self, pr):
         """Provide code review on pull request."""
-        if pr is None or pr.state != 'open':  # Ignore closed PRs
+        if pr.state != 'open':  # Ignore closed PRs
             self.log.info('Handle PR called on {0} pull request: {1}'
                           .format(pr.state, pr))
             return
@@ -324,7 +324,9 @@ class Farcy(object):
         """Check push commits only to open pull requests."""
         ref = event.payload['ref']
         assert ref.startswith('refs/heads/')
-        self.handle_pr(self.open_prs.get(ref.rsplit('/', 1)[1]))
+        pull_request = self.open_prs.get(ref.rsplit('/', 1)[1])
+        if pull_request:
+            self.handle_pr(pull_request)
 
     def run(self):
         """Run the bot until ctrl+c is received."""
