@@ -226,9 +226,8 @@ class Farcy(object):
             self.log.debug('No handlers for extension {0}'.format(ext))
             return {}
         retval = {}
-        stream = pfile._session.get(pfile.raw_url, stream=True)
         with tempfile.NamedTemporaryFile() as fp:
-            for chunk in stream.iter_content(chunk_size=1024):
+            for chunk in pfile.contents(True).iter_content(chunk_size=1024):
                 if chunk:
                     fp.write(chunk)
                     fp.flush()
