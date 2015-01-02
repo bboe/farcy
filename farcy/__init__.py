@@ -2,14 +2,15 @@
 
 """Farcy, a code review bot for github pull requests.
 
-Usage: farcy.py [-D | --logging=LEVEL] WATCH_OWNER WATCH_REPOSITORY
+Usage: farcy.py [-D | --logging=LEVEL] [options] OWNER REPOSITORY
 
 Options:
 
-  -D               Enable all log output (shortcut for: --logging=DEBUG).
-  --logging=LEVEL  Specify the price log level to output.
-  -h, --help       Show this screen.
-  --version        Show the program's version.
+  -s ID, --start=ID The event id to start handling events from.
+  -D                Enable all log output (shortcut for: --logging=DEBUG).
+  --logging=LEVEL   Specify the price log level to output.
+  -h, --help        Show this screen.
+  --version         Show the program's version.
 
 """
 
@@ -54,9 +55,6 @@ class UTC(tzinfo):
     dst = lambda x, y: timedelta(0)
     tzname = lambda x, y: 'UTC'
     utcoffset = lambda x, y: timedelta(0)
-
-
-START_TIME = datetime.now(UTC())
 
 
 class Farcy(object):
@@ -126,7 +124,7 @@ class Farcy(object):
         sys.stdout.flush()
         return sys.stdin.readline().strip()
 
-    def __init__(self, owner, repository, log_level=None):
+    def __init__(self, owner, repository, start_event=None, log_level=None):
         """Initialize an instance of Farcy that monitors owner/repository."""
         # Configure logging
         self.log = logging.getLogger(__name__)
@@ -144,6 +142,13 @@ class Farcy(object):
             self.log.addHandler(handler)
         else:
             self.log.setLevel(logging.NOTSET)
+
+        if start_event:
+            self.start_time = None
+            self.last_event_id = int(start_event) - 1
+        else:
+            self.start_time = datetime.now(UTC())
+            self.last_event_id = None
 
         self._load_handlers()
 
@@ -178,7 +183,6 @@ class Farcy(object):
 
     def events(self):
         """Yield repository events in order."""
-        id_marker = None
         etag = None
         sleep_time = None  # This value will be overwritten
         while True:
@@ -190,8 +194,8 @@ class Farcy(object):
                 itr_first_id = itr_first_id or int(event.id)
 
                 # Stop when we've already seen something
-                if id_marker and int(event.id) <= id_marker or \
-                   event.created_at < START_TIME:
+                if self.last_event_id and int(event.id) <= self.last_event_id \
+                   or self.start_time and event.created_at < self.start_time:
                     break
 
                 self.log.debug('EVENT {eid} {time} {etype}'.format(
@@ -202,7 +206,7 @@ class Farcy(object):
                     events.insert(0, event)
 
             etag = itr.etag
-            id_marker = itr_first_id or id_marker
+            self.last_event_id = itr_first_id or self.last_event_id
 
             # Yield events from oldest to newest
             for event in events:
@@ -333,7 +337,7 @@ def main():
     debug = 'DEBUG' if args['-D'] else args['--logging']
 
     try:
-        Farcy(args['WATCH_OWNER'], args['WATCH_REPOSITORY'], debug).run()
+        Farcy(args['OWNER'], args['REPOSITORY'], args['--start'], debug).run()
     except KeyboardInterrupt:
         sys.stderr.write('Farcy shutting down. Goodbye!\n')
         return 0
