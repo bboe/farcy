@@ -18,6 +18,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, tzinfo
 from docopt import docopt
 from github3 import GitHub
+from github3.exceptions import GitHubError
 from update_checker import UpdateChecker
 import logging
 import os
@@ -40,21 +41,6 @@ TODO:
 __version__ = '0.1b'
 NUMBER_RE = re.compile('(\d+)')
 VERSION_STR = 'farcy v{0}'.format(__version__)
-
-
-# Hack to be forward compatible with github3 v 1.0
-# Delete once github3 v1.0 is released
-from github3 import __version__ as gh_version
-if gh_version.startswith('0'):
-    from github3.repos import Repository
-    Repository.pull_requests = Repository.iter_pulls
-    Repository.events = Repository.iter_events
-    del Repository
-    from github3.pulls import PullRequest
-    PullRequest.files = PullRequest.iter_files
-    from github3.models import GitHubError
-else:
-    from github3.exceptions import GitHubError
 
 
 class UTC(tzinfo):
