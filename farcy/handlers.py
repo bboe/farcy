@@ -1,6 +1,6 @@
 """Defines handlers for various file types."""
 
-from subprocess import CalledProcessError, check_output
+from subprocess import CalledProcessError, STDOUT, check_output
 import json
 import logging
 from update_checker import parse_version
@@ -29,12 +29,13 @@ class ExtHandler(object):
     BINARY = None
     BINARY_VERSION = None
     EXTENSIONS = []
+    OUTPUT = 'stdout'
 
     @staticmethod
-    def execute(args):
+    def execute(args, stderr=DEVNULL):
         """Return output of argument execution ignoring status code."""
         try:
-            return check_output(args, stderr=DEVNULL).decode('utf-8')
+            return check_output(args, stderr=stderr).decode('utf-8')
         except CalledProcessError as exc:
             return exc.output
 
@@ -146,7 +147,7 @@ class Pep257(ExtHandler):
     EXTENSIONS = ['.py']
 
     def _process(self, filename):
-        return self.execute([self.BINARY, filename])
+        return self.execute([self.BINARY, filename], stderr=STDOUT)
 
 
 class Rubocop(ExtHandler):

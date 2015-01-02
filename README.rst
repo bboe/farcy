@@ -58,5 +58,5 @@ Copyright and license
 
 Source released under the Simplified BSD License.
 
-* Copyright (c), 2014, Appfolio, Inc
+* Copyright (c), 2014, AppFolio, Inc
 * Copyright (c), 2014, Bryce Boe
