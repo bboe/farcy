@@ -173,7 +173,7 @@ class Farcy(object):
     def _load_handlers(self):
         from . import handlers
         self._ext_to_handler = defaultdict(list)
-        for handler in (handlers.Rubocop,):
+        for handler in (handlers.Flake8, handlers.Pep257, handlers.Rubocop):
             try:
                 handler_inst = handler()
             except HandlerException:
