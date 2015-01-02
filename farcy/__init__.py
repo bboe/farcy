@@ -7,8 +7,9 @@ Usage: farcy.py [-D | --logging=LEVEL] [options] OWNER REPOSITORY
 Options:
 
   -s ID, --start=ID The event id to start handling events from.
-  -D                Enable all log output (shortcut for: --logging=DEBUG).
-  --logging=LEVEL   Specify the price log level to output.
+  -D, --debug       Enable debugging mode. This enables all logging output
+                    and prevents the posting of comments.
+  --logging=LEVEL   Specify the log level to output.
   -h, --help        Show this screen.
   --version         Show the program's version.
 
@@ -124,10 +125,14 @@ class Farcy(object):
         sys.stdout.flush()
         return sys.stdin.readline().strip()
 
-    def __init__(self, owner, repository, start_event=None, log_level=None):
+    def __init__(self, owner, repository, start_event=None, log_level=None,
+                 debug=False):
         """Initialize an instance of Farcy that monitors owner/repository."""
         # Configure logging
+        self.debug = debug
         self.log = logging.getLogger(__name__)
+        if debug:
+            log_level = 'DEBUG'
         if log_level:
             try:
                 level = int(getattr(logging, log_level.upper()))
@@ -249,6 +254,7 @@ class Farcy(object):
         sha = list(pr.commits())[-1].sha
         issue_count = 0
         did_work = True
+        exception = False
         for pfile in pr.files():
             added = None
             if pfile.status == 'deleted':  # Ignore deleted files
@@ -270,7 +276,13 @@ class Farcy(object):
                 continue
             did_work = True
 
-            issues = self.get_issues(pfile)
+            try:
+                issues = self.get_issues(pfile)
+            except Exception:
+                self.log.exception('Failure with get_issues for {0}'
+                                   .format(pfile.filename))
+                exception = True
+                continue
             by_line = {}
             for offense in issues.get('files', [{}])[0].get('offenses', []):
                 lineno = offense['location']['line']
@@ -283,18 +295,27 @@ class Farcy(object):
 
             for lineno, msgs in sorted(by_line.items()):
                 position = added[lineno] if added else lineno
-                retval = pr.create_review_comment('\n'.join(msgs), sha,
-                                                  pfile.filename, position)
-                print(vars(retval))
+                args = ('\n'.join(msgs), sha, pfile.filename, position)
+                if not self.debug:
+                    retval = pr.create_review_comment(args)
+                    print(vars(retval))
+                else:
+                    self.log.info('WOULD REVIEW COMMENT: "{0}" {1} {2} {3}'
+                                  .format(*args))
 
         msg = '_{0}_ {{0}}'.format(VERSION_STR)
         if issue_count > 0:
             msg = msg.format('found {0} issues'.format(issue_count))
         else:
             msg = msg.format(':+1:')
-        if did_work:
-            retval = self.repo.issue(pr.number).create_comment(msg)
-            self.log.info('Commented "{0}": {1}'.format(msg, retval.html_url))
+        if did_work and not exception:
+            if not self.debug:
+                retval = self.repo.issue(pr.number).create_comment(msg)
+                self.log.info('Commented "{0}": {1}'.format(msg,
+                                                            retval.html_url))
+            else:
+                self.log.info('WOULD PR#{0} COMMENT: "{1}"'
+                              .format(pr.number, msg))
 
     def PullRequestEvent(self, event):
         """Check commits on new pull requests."""
@@ -333,10 +354,10 @@ class Farcy(object):
 def main():
     """Provide an entry point into Farcy."""
     args = docopt(__doc__, version=VERSION_STR)
-    debug = 'DEBUG' if args['-D'] else args['--logging']
 
     try:
-        Farcy(args['OWNER'], args['REPOSITORY'], args['--start'], debug).run()
+        Farcy(args['OWNER'], args['REPOSITORY'], args['--start'],
+              args['--logging'], args['--debug']).run()
     except KeyboardInterrupt:
         sys.stderr.write('Farcy shutting down. Goodbye!\n')
         return 0
