@@ -12,3 +12,12 @@ An overview of farcy's objects and methods.
     :members:
     :undoc-members:
     :show-inheritance:
+
+
+:mod:`handlers` Module
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: farcy.handlers
+    :members:
+    :undoc-members:
+    :show-inheritance:

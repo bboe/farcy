@@ -6,12 +6,12 @@ Usage: farcy.py [-D | --logging=LEVEL] [options] OWNER REPOSITORY
 
 Options:
 
-  -s ID, --start=ID The event id to start handling events from.
-  -D, --debug       Enable debugging mode. This enables all logging output
-                    and prevents the posting of comments.
-  --logging=LEVEL   Specify the log level to output.
-  -h, --help        Show this screen.
-  --version         Show the program's version.
+  -s ID, --start=ID  The event id to start handling events from.
+  -D, --debug        Enable debugging mode. This enables all logging output
+                     and prevents the posting of comments.
+  --logging=LEVEL    Specify the log level to output.
+  -h, --help         Show this screen.
+  --version          Show the program's version.
 
 """
 
@@ -147,6 +147,7 @@ class Farcy(object):
             handler.setFormatter(logging.Formatter(
                 '%(asctime)s %(levelname)8s %(message)s', '%Y/%m/%d %H:%M:%S'))
             self.log.addHandler(handler)
+            self.log.info('Logging enabled at level {0}'.format(log_level))
         else:
             self.log.setLevel(logging.NOTSET)
 
