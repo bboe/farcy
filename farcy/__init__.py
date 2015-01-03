@@ -6,12 +6,12 @@ Usage: farcy.py [-D | --logging=LEVEL] [options] OWNER REPOSITORY
 
 Options:
 
-  -s ID, --start=ID The event id to start handling events from.
-  -D, --debug       Enable debugging mode. This enables all logging output
-                    and prevents the posting of comments.
-  --logging=LEVEL   Specify the log level to output.
-  -h, --help        Show this screen.
-  --version         Show the program's version.
+  -s ID, --start=ID  The event id to start handling events from.
+  -D, --debug        Enable debugging mode. This enables all logging output
+                     and prevents the posting of comments.
+  --logging=LEVEL    Specify the log level to output.
+  -h, --help         Show this screen.
+  --version          Show the program's version.
 
 """
 
@@ -147,6 +147,7 @@ class Farcy(object):
             handler.setFormatter(logging.Formatter(
                 '%(asctime)s %(levelname)8s %(message)s', '%Y/%m/%d %H:%M:%S'))
             self.log.addHandler(handler)
+            self.log.info('Logging enabled at level {0}'.format(log_level))
         else:
             self.log.setLevel(logging.NOTSET)
 
@@ -295,8 +296,10 @@ class Farcy(object):
                     del issues[lineno]
 
             if issues:
-                self.log.debug('IGNORING {0} issues on lines {1}'.format(
-                    sum(len(x) for x in issues.values()),
+                count = sum(len(x) for x in issues.values())
+                self.log.debug('IGNORING {0} issue{1} on line{2} {3}'.format(
+                    count, '' if count == 1 else 's',
+                    '' if len(issues) == 1 else 's',
                     ', '.join(str(x) for x in sorted(issues))))
 
             for lineno, msgs in sorted(by_line.items()):
