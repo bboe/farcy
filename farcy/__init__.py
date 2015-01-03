@@ -43,6 +43,8 @@ TODO:
 __version__ = '0.1b'
 NUMBER_RE = re.compile('(\d+)')
 VERSION_STR = 'farcy v{0}'.format(__version__)
+MD_VERSION_STR = ('[{0}](https://github.com/appfolio/farcy)'
+                  .format(VERSION_STR))
 
 
 class UTC(tzinfo):
@@ -249,7 +251,7 @@ class Farcy(object):
             self.log.info('Handle PR called on {0} PullRequest #{1}'
                           .format(pr.state, pr.number))
             return
-        self.log.info('Handling PR: {0}'.format(pr))
+        self.log.info('Handling PullRequest #{0}'.format(pr.number))
 
         sha = list(pr.commits())[-1].sha
         issue_count = 0
@@ -268,8 +270,9 @@ class Farcy(object):
             elif pfile.status == 'modified':
                 # Only report issues on the changed lines
                 added = self.added_lines(pfile.patch)
-                self.log.debug('Found {0} modified lines in {1}'
-                               .format(len(added), pfile.filename))
+                self.log.debug('Found {0} modified line{2} in {1}'
+                               .format(len(added), pfile.filename,
+                                       '' if len(added) == 1 else 's'))
             else:
                 self.log.critical('Unexpected file status {0} on {1}'
                                   .format(pfile.status, pfile.filename))
@@ -283,39 +286,40 @@ class Farcy(object):
                                    .format(pfile.filename))
                 exception = True
                 continue
-            by_line = {}
-            for offense in issues.get('files', [{}])[0].get('offenses', []):
-                lineno = offense['location']['line']
+            by_line = defaultdict(lambda: ['_{0}_\n'.format(MD_VERSION_STR)])
+            for lineno, line_issues in issues.items():
                 if added is None or lineno in added:
-                    msgs = by_line.setdefault(lineno, [])
-                    if not msgs:
-                        msgs.append('_{0}_\n'.format(VERSION_STR))
-                    msgs.append('* {cop_name}: {message}'.format(**offense))
-                    issue_count += 1
+                    by_line[lineno].extend(
+                        ['* {0}'.format(x) for x in line_issues])
+                    issue_count += len(line_issues)
+                    del issues[lineno]
+
+            if issues:
+                self.log.debug('IGNORING {0} issues on lines {1}'.format(
+                    sum(len(x) for x in issues.values()),
+                    ', '.join(str(x) for x in sorted(issues))))
 
             for lineno, msgs in sorted(by_line.items()):
                 position = added[lineno] if added else lineno
                 args = ('\n'.join(msgs), sha, pfile.filename, position)
+                info = msgs
                 if not self.debug:
-                    retval = pr.create_review_comment(args)
-                    print(vars(retval))
-                else:
-                    self.log.info('WOULD REVIEW COMMENT: "{0}" {1} {2} {3}'
-                                  .format(*args))
+                    info = pr.create_review_comment(*args).html_url
+                self.log.info('PR#{0} ({1}:{2}) COMMENT: "{3}"'.format(
+                    pr.number, pfile.filename, position, info))
 
-        msg = '_{0}_ {{0}}'.format(VERSION_STR)
+        msg = '_{0}_ {{0}}'.format(MD_VERSION_STR)
         if issue_count > 0:
-            msg = msg.format('found {0} issues'.format(issue_count))
+            msg = msg.format('found {0} issue{1}'.format(
+                issue_count, '' if issue_count == 1 else 's'))
         else:
             msg = msg.format(':+1:')
         if did_work and not exception:
+            url = ''
             if not self.debug:
-                retval = self.repo.issue(pr.number).create_comment(msg)
-                self.log.info('Commented "{0}": {1}'.format(msg,
-                                                            retval.html_url))
-            else:
-                self.log.info('WOULD PR#{0} COMMENT: "{1}"'
-                              .format(pr.number, msg))
+                url = self.repo.issue(pr.number).create_comment(msg).html_url
+            self.log.info('PR#{0} COMMENT: "{1}" {2}'.format(
+                pr.number, msg, url))
 
     def PullRequestEvent(self, event):
         """Check commits on new pull requests."""
