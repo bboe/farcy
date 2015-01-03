@@ -39,7 +39,7 @@ class ExtHandler(object):
         try:
             return check_output(args, stderr=stderr).decode('utf-8')
         except CalledProcessError as exc:
-            return exc.output
+            return exc.output.decode('utf-8')
 
     @classmethod
     def verify_version(cls, installed, exact=False):

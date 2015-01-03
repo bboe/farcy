@@ -29,12 +29,13 @@ class Flake8Test(FarcyTest):
     def test_perfect_file(self):
         """There should be no issues."""
         errors = self.process(self.path('no_issue.py'))
-        self.assertEqual('', errors)
+        self.assertEqual({}, errors)
 
     def test_single_error(self):
         """A single error should be returned."""
         errors = self.process(self.path('single_issue.py'))
-        self.assertEqual(1, errors.count(b'\n'))
+        self.assertEqual({3: ['1: E302 expected 2 blank lines, found 1']},
+                         errors)
 
 
 class Pep257Test(FarcyTest):
@@ -48,9 +49,11 @@ class Pep257Test(FarcyTest):
     def test_perfect_file(self):
         """There should be no issues."""
         errors = self.process(self.path('no_issue.py'))
-        self.assertEqual('', errors)
+        self.assertEqual({}, errors)
 
     def test_single_error(self):
         """A single error should be returned."""
         errors = self.process(self.path('single_issue.py'))
-        self.assertEqual(2, errors.count(b'\n'))
+        self.assertEqual({3: [('D203: Expected 1 blank line *before* class '
+                               'docstring, found 0')]},
+                         errors)
