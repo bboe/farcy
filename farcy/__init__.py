@@ -296,8 +296,10 @@ class Farcy(object):
                     del issues[lineno]
 
             if issues:
-                self.log.debug('IGNORING {0} issues on lines {1}'.format(
-                    sum(len(x) for x in issues.values()),
+                count = sum(len(x) for x in issues.values())
+                self.log.debug('IGNORING {0} issue{1} on line{2} {3}'.format(
+                    count, '' if count == 1 else 's',
+                    '' if len(issues) == 1 else 's',
                     ', '.join(str(x) for x in sorted(issues))))
 
             for lineno, msgs in sorted(by_line.items()):
