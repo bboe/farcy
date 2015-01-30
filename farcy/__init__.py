@@ -9,9 +9,12 @@ Options:
   -s ID, --start=ID  The event id to start handling events from.
   -D, --debug        Enable debugging mode. This enables all logging output
                      and prevents the posting of comments.
-  --logging=LEVEL    Specify the log level to output.
+  --logging=LEVEL    Specify the log level* to output.
   -h, --help         Show this screen.
   --version          Show the program's version.
+
+* Available log levels:
+    https://docs.python.org/3/library/logging.html#logging-levels
 
 """
 
