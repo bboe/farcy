@@ -291,7 +291,7 @@ class Farcy(object):
                 exception = True
                 continue
             by_line = defaultdict(lambda: ['_{0}_\n'.format(MD_VERSION_STR)])
-            for lineno, line_issues in issues.items():
+            for lineno, line_issues in list(issues.items()):
                 if added is None or lineno in added:
                     by_line[lineno].extend(
                         ['* {0}'.format(x) for x in line_issues])
