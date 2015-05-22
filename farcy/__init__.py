@@ -277,6 +277,11 @@ class Farcy(object):
                 self.log.debug('Found {0} modified line{2} in {1}'
                                .format(len(added), pfile.filename,
                                        '' if len(added) == 1 else 's'))
+            elif pfile.status == 'added':
+                added = self.added_lines(pfile.patch)
+                self.log.debug('Found new file {0} with {1} new line{2}'
+                               .format(pfile.filename, len(added),
+                                       '' if len(added) == 1 else 's'))
             else:
                 self.log.critical('Unexpected file status {0} on {1}'
                                   .format(pfile.status, pfile.filename))
