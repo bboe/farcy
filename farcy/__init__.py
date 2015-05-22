@@ -238,12 +238,10 @@ class Farcy(object):
             return {}
         retval = {}
         with tempfile.NamedTemporaryFile() as fp:
-            for chunk in pfile.contents(True).iter_content(chunk_size=1024):
-                if chunk:
-                    fp.write(chunk)
-                    fp.flush()
-                # Prevent modification by handlers
-                os.chmod(fp.name, stat.S_IRUSR)
+            fp.write(pfile.contents())
+            fp.flush()
+            os.chmod(fp.name, stat.S_IRUSR)
+
             for handler in handlers:
                 retval.update(handler.process(fp.name))
         return retval
