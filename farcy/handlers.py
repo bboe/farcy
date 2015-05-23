@@ -141,7 +141,7 @@ class Flake8(ExtHandler):
     """Provides feedback for python files using flake8."""
 
     BINARY = 'flake8'
-    BINARY_VERSION = '2.2.3'
+    BINARY_VERSION = '2.4.1'
     EXTENSIONS = ['.py']
     RE = re.compile('[^:]+:(\d+):([^\n]+)\n')
 
@@ -158,7 +158,7 @@ class Pep257(ExtHandler):
     """Provides feedback for python files using pep257."""
 
     BINARY = 'pep257'
-    BINARY_VERSION = '0.3.2'
+    BINARY_VERSION = '0.5.0'
     EXTENSIONS = ['.py']
     RE = re.compile('[^:]+:(\d+)[^\n]+\n\s+([^\n]+)\n')
 
