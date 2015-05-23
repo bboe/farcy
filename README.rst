@@ -5,6 +5,8 @@ farcy: a code review bot for github pull requests
 
 .. image:: https://travis-ci.org/appfolio/farcy.svg?branch=master
                :target: https://travis-ci.org/appfolio/farcy
+.. image:: https://coveralls.io/repos/appfolio/farcy/badge.svg?branch=master
+               :target: https://coveralls.io/r/appfolio/farcy?branch=master
 
 **Definition**:
 

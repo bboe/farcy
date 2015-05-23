@@ -4,10 +4,16 @@ python:
   - 3.2
   - 3.3
   - 3.4
-before_script:
+  - nightly
+  - pypy
+  - pypy3
+matrix:
+  allow_failures:
+  - python: nightly
+sudo: false
+install: pip install coveralls flake8 pep257
+script:
   - flake8 farcy
   - pep257 farcy
-install:
-  - pip install flake8 pep257 --use-mirrors
-  - python setup.py install
-script: python setup.py test
+  - coverage run --source=farcy setup.py test
+after_success: coveralls
