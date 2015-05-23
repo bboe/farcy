@@ -1,5 +1,7 @@
 """Defines the exceptions used in the farcy package."""
 
+from __future__ import print_function
+
 
 class FarcyException(Exception):
 
@@ -9,3 +11,8 @@ class FarcyException(Exception):
 class HandlerException(FarcyException):
 
     """Farcy handler primary exception."""
+
+
+class HandlerNotReady(HandlerException):
+
+    """Exception indicating that a handler is not ready for use."""

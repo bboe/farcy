@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """Farcy, a code review bot for github pull requests.
 
 Usage: farcy.py [-D | --logging=LEVEL] [options] OWNER REPOSITORY
