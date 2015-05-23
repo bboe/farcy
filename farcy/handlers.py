@@ -1,9 +1,10 @@
 """Defines handlers for various file types."""
 
+from __future__ import print_function
 from collections import defaultdict
 from subprocess import CalledProcessError, STDOUT, check_output
 from update_checker import parse_version
-from .exceptions import HandlerException
+from .exceptions import HandlerException, HandlerNotReady
 import json
 import logging
 import re
@@ -49,9 +50,6 @@ class ExtHandler(object):
         :param exact: Raise HandlerException when there is not an exact
             match. Note that 0.27.0 is considered exact to 0.27.
         """
-        if ' ' in installed:
-            logging.getLogger(__name__).debug(
-                'Version string contains space: {0}'.format(installed))
         exp = parse_version(cls.BINARY_VERSION)
         inp = parse_version(installed)
         op = None
@@ -61,14 +59,14 @@ class ExtHandler(object):
             op = '>= '
         if op is not None:
             raise HandlerException(
-                'Expected {0} {1}{2}, found {installed}'
+                'Expected {0} {1}{2}, found {3}'
                 .format(cls.BINARY, op, cls.BINARY_VERSION, installed))
 
     def __init__(self, on_demand=False):
         """A handler's constructor is called only once upon farcy start-up.
 
         :param on_demand: When true, plugins that are not usable on start-up
-            will are still loaded, and will be tested for use on-demand.
+            are still loaded, and will be tested for use on-demand.
 
         By default this method only calls the ``assert_usable`` instance method
         to see if the plugin's dependencies are available.
@@ -78,10 +76,11 @@ class ExtHandler(object):
         try:
             self.assert_usable()
             self._plugin_ready = True
-        except HandlerException as exc:
-            if not on_demand:
-                self._logger.warn('{0} is not ready: {1}'
-                                  .format(self.name, exc.message))
+        except HandlerNotReady as exc:
+            if on_demand:
+                self._logger.warning('{0} is not ready: {1}'
+                                     .format(self.name, str(exc)))
+            else:
                 raise
             self._plugin_ready = False
 
@@ -96,7 +95,7 @@ class ExtHandler(object):
     def assert_usable(self):
         """Raise HandlerException if the handler is not ready for use."""
         if self.name == 'ExtHandler':
-            raise HandlerException('Base class `ExtHandler` is never usable.')
+            raise HandlerException('Base class `ExtHandler` must be extended.')
         if not self.BINARY:
             raise HandlerException('{0} does not have a binary specified.'
                                    .format(self.name))
@@ -105,7 +104,10 @@ class ExtHandler(object):
                        .decode('utf-8'))
         except OSError as exc:
             if exc.errno == 2:
-                raise HandlerException('{0} is not installed'
+                raise HandlerNotReady('{0} is not installed.'
+                                      .format(self.BINARY))
+            elif exc.errno == 13:
+                raise HandlerException('{0} cannot be executed.'
                                        .format(self.BINARY))
             raise  # Unexpected and unhandled exception
         self.verify_version(self.version_callback(version))
@@ -125,9 +127,9 @@ class ExtHandler(object):
             try:
                 self.assert_usable()
                 self._plugin_ready = True
-            except HandlerException as exc:
-                self._logger.warn('{0} is not ready: {1}'
-                                  .format(self.name, exc.message))
+            except HandlerNotReady as exc:
+                self._logger.warning('{0} is not ready: {1}'
+                                     .format(self.name, exc.message))
                 return {}
         return self._process(filename)
 
