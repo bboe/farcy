@@ -46,8 +46,8 @@ NUMBER_RE = re.compile('(\d+)')
 VERSION_STR = 'farcy v{0}'.format(__version__)
 MD_VERSION_STR = ('[{0}](https://github.com/appfolio/farcy)'
                   .format(VERSION_STR))
-PR_ISSUE_COMMENT_FORMAT = '_{}_ {{0}}'.format(MD_VERSION_STR)
-COMMIT_STATUS_FORMAT = '{} {{0}}'.format(VERSION_STR)
+PR_ISSUE_COMMENT_FORMAT = '_{0}_ {{0}}'.format(MD_VERSION_STR)
+COMMIT_STATUS_FORMAT = '{0} {{0}}'.format(VERSION_STR)
 
 
 class UTC(tzinfo):
@@ -322,7 +322,7 @@ class Farcy(object):
                 issue_count, '' if issue_count == 1 else 's')
             status_state = 'error'
         else:
-            status_msg = ':+1:'
+            status_msg = 'approves!'
             status_state = 'success'
         if did_work and not exception:
             pr_msg = PR_ISSUE_COMMENT_FORMAT.format(status_msg)
