@@ -46,6 +46,8 @@ NUMBER_RE = re.compile('(\d+)')
 VERSION_STR = 'farcy v{0}'.format(__version__)
 MD_VERSION_STR = ('[{0}](https://github.com/appfolio/farcy)'
                   .format(VERSION_STR))
+PR_ISSUE_COMMENT_FORMAT = '_{0}_ {{0}}'.format(MD_VERSION_STR)
+COMMIT_STATUS_FORMAT = '{0} {{0}}'.format(VERSION_STR)
 
 
 class UTC(tzinfo):
@@ -315,18 +317,22 @@ class Farcy(object):
                 self.log.info('PR#{0} ({1}:{2}) COMMENT: "{3}"'.format(
                     pr.number, pfile.filename, position, info))
 
-        msg = '_{0}_ {{0}}'.format(MD_VERSION_STR)
         if issue_count > 0:
-            msg = msg.format('found {0} issue{1}'.format(
-                issue_count, '' if issue_count == 1 else 's'))
+            status_msg = 'found {0} issue{1}'.format(
+                issue_count, '' if issue_count == 1 else 's')
+            status_state = 'error'
         else:
-            msg = msg.format(':+1:')
+            status_msg = 'approves!'
+            status_state = 'success'
         if did_work and not exception:
-            url = ''
+            pr_msg = PR_ISSUE_COMMENT_FORMAT.format(status_msg)
             if not self.debug:
-                url = self.repo.issue(pr.number).create_comment(msg).html_url
-            self.log.info('PR#{0} COMMENT: "{1}" {2}'.format(
-                pr.number, msg, url))
+                self.repo.create_status(
+                    sha, status_state,
+                    description=COMMIT_STATUS_FORMAT.format(status_msg),
+                    context=VERSION_STR)
+            self.log.info('PR#{0} COMMENT: "{1}"'.format(
+                pr.number, pr_msg))
 
     def PullRequestEvent(self, event):
         """Check commits on new pull requests."""
