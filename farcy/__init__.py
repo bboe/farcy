@@ -331,7 +331,7 @@ class Farcy(object):
                     sha, status_state,
                     description=COMMIT_STATUS_FORMAT.format(status_msg),
                     context=VERSION_STR)
-            self.log.info('PR#{0} COMMENT: "{1}" {2}'.format(
+            self.log.info('PR#{0} COMMENT: "{1}"'.format(
                 pr.number, pr_msg))
 
     def PullRequestEvent(self, event):
