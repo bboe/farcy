@@ -183,3 +183,39 @@ class Rubocop(ExtHandler):
             retval[offense['location']['line']].append(
                 '{cop_name}: {message}'.format(**offense))
         return retval
+
+
+class JSXHint(ExtHandler):
+
+    """Provides feedback for JS/JSX files using jsxhint."""
+
+    BINARY = 'jsxhint'
+    BINARY_VERSION = '0.15.0'
+    EXTENSIONS = ['.jsx', '.js']
+    RE = re.compile('.*:(\d+):\d+: (.*)\n')
+
+    def _process(self, filename):
+        data = self.execute([self.BINARY, '--reporter', 'unix', filename])
+
+        retval = defaultdict(list)
+        for lineno, msg in self.RE.findall(data):
+            retval[int(lineno)].append(msg)
+
+        return retval
+
+    def assert_usable(self):
+        try:
+            version = (check_output([self.BINARY, '--version'], stderr=STDOUT)
+                       .decode('utf-8'))
+        except OSError as exc:
+            if exc.errno == 2:
+                raise HandlerNotReady('{0} is not installed.'
+                                      .format(self.BINARY))
+            elif exc.errno == 13:
+                raise HandlerException('{0} cannot be executed.'
+                                       .format(self.BINARY))
+            raise  # Unexpected and unhandled exception
+        self.verify_version(self.version_callback(version))
+
+    def version_callback(self, version):
+        return version.split(' ')[1][1:]
