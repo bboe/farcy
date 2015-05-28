@@ -204,6 +204,7 @@ class JSXHint(ExtHandler):
         return retval
 
     def assert_usable(self):
+        """Raise HandlerException if the handler is not ready for use."""
         try:
             version = (check_output([self.BINARY, '--version'], stderr=STDOUT)
                        .decode('utf-8'))
@@ -218,4 +219,5 @@ class JSXHint(ExtHandler):
         self.verify_version(self.version_callback(version))
 
     def version_callback(self, version):
+        """Return a parsed version string for the binary version."""
         return version.split(' ')[1][1:]
