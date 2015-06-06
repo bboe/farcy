@@ -90,6 +90,16 @@ class Farcy(object):
         return added
 
     @staticmethod
+    def _raise_unexpected(code):
+        """Called from with in an except block.
+
+        Re-raises the exception if we don't know how to handle it.
+
+        """
+        if code != 401:
+            raise
+
+    @staticmethod
     def get_session():
         """Fetch and/or load API authorization token for GITHUB."""
         credential_file = os.path.expanduser('~/.config/farcy')
@@ -101,8 +111,7 @@ class Farcy(object):
                 gh.is_starred('github', 'gitignore')
                 return gh
             except GitHubError as exc:
-                if exc.code != 401:
-                    raise  # Unexpected and unhandled exception
+                Farcy._raise_unexpected(exc.code)
                 sys.stderr.write('Invalid saved credential file.\n')
 
         from getpass import getpass
@@ -115,9 +124,8 @@ class Farcy(object):
                 'Farcy Code Reviewer',
                 two_factor_callback=lambda: Farcy.prompt('Two factor token'))
         except GitHubError as exc:
-            if exc.code == 401:
-                raise FarcyException(exc.message)
-            raise  # Unexpected and unhandled exception
+            Farcy._raise_unexpected(exc.code)
+            raise FarcyException(exc.message)
 
         with open(credential_file, 'w') as fd:
             fd.write('{0}\n{1}\n'.format(auth.token, auth.id))

@@ -37,6 +37,7 @@ setup(name=PACKAGE_NAME,
       license='Simplified BSD License',
       long_description=README,
       packages=[PACKAGE_NAME],
+      tests_require=['mock >= 1.0.1'],
       test_suite='test',
       url='https://github.com/appfolio/farcy',
       version=VERSION)
