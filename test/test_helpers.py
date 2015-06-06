@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 import unittest
-import farcy
+import farcy.helpers as helpers
 
 
 class MockComment(object):
@@ -10,7 +10,7 @@ class MockComment(object):
 
     def __init__(self, body=None, path=None, position=None, issues=None):
         if issues:
-            body = '\n'.join([farcy.FARCY_COMMENT_START] +
+            body = '\n'.join([helpers.FARCY_COMMENT_START] +
                              ['* ' + issue for issue in issues])
         self.body = body
         self.path = path
@@ -21,11 +21,11 @@ class CommentFunctionTest(unittest.TestCase):
 
     """Tests common Farcy handler extension methods."""
     def test_is_farcy_comment_detects_farcy_comment(self):
-        self.assertTrue(farcy.is_farcy_comment(MockComment(
+        self.assertTrue(helpers.is_farcy_comment(MockComment(
             issues=['Hello issue']).body))
 
     def test_is_farcy_comment_detects_if_not_farcy_comment(self):
-        self.assertFalse(farcy.is_farcy_comment(MockComment(
+        self.assertFalse(helpers.is_farcy_comment(MockComment(
             'Just a casual remark by not Farcy').body))
 
     def test_filter_comments_from_farcy(self):
@@ -34,7 +34,7 @@ class CommentFunctionTest(unittest.TestCase):
 
         self.assertEqual(
             [farcy_comment],
-            list(farcy.filter_comments_from_farcy(
+            list(helpers.filter_comments_from_farcy(
                 [normal_comment, farcy_comment])))
 
     def test_filter_comments_by_path(self):
@@ -43,14 +43,14 @@ class CommentFunctionTest(unittest.TestCase):
 
         self.assertEqual(
             [comment2],
-            list(farcy.filter_comments_by_path(
+            list(helpers.filter_comments_by_path(
                 [comment, comment2], 'that/path')))
 
     def test_extract_issues(self):
         issues = ['Hello', 'World']
         comment = MockComment(issues=issues)
 
-        self.assertEqual(issues, farcy.extract_issues(comment.body))
+        self.assertEqual(issues, helpers.extract_issues(comment.body))
 
     def test_issues_by_line_filters_non_farcy_comments(self):
         issues = ['Hello', 'World']
@@ -61,7 +61,7 @@ class CommentFunctionTest(unittest.TestCase):
 
         self.assertEqual(
             {1: issues+issues2},
-            farcy.issues_by_line([comment, comment2, comment3], 'test.py'))
+            helpers.issues_by_line([comment, comment2, comment3], 'test.py'))
 
     def test_subtract_issues_by_line(self):
         issues = {
@@ -78,4 +78,4 @@ class CommentFunctionTest(unittest.TestCase):
 
         self.assertEqual(
             {1: ['Hello'], 5: ['Issue']},
-            farcy.subtract_issues_by_line(issues, existing))
+            helpers.subtract_issues_by_line(issues, existing))
