@@ -75,12 +75,13 @@ class FarcyTest(unittest.TestCase):
     @patch('github3.authorize')
     @patch('getpass.getpass')
     @patch('farcy.Farcy.prompt')
+    @patch('farcy.sys.stderr')
     @patch.object(GitHub, 'is_starred')
     @patch('farcy.open', create=True)
     @patch('farcy.os.path')
     def test_get_session__from_credentials_file__handled_exception(
-            self, mock_path, mock_open, mock_is_starred, mock_prompt,
-            mock_getpass, mock_authorize):
+            self, mock_path, mock_open, mock_is_starred, mock_stderr,
+            mock_prompt, mock_getpass, mock_authorize):
         mock_path.expanduser.return_value = 'mock_path'
         mock_path.isfile.return_value = True
         mock_open.return_value = MagicMock(spec=IOBase)
@@ -88,6 +89,7 @@ class FarcyTest(unittest.TestCase):
         mock_response = MockResponse(content='', status_code=401)
         mock_is_starred.side_effect = GitHubError(mock_response)
         self.assertTrue(isinstance(Farcy.get_session(), GitHub))
+        self.assertTrue(mock_stderr.write.called)
         self.assertTrue(mock_prompt.called)
         self.assertTrue(mock_getpass.called)
         self.assertTrue(mock_open.called)
@@ -103,3 +105,11 @@ class FarcyTest(unittest.TestCase):
 
         mock_is_starred.side_effect = TypeError
         self.assertRaises(TypeError, Farcy.get_session)
+
+    @patch('farcy.sys.stdin')
+    @patch('farcy.sys.stdout')
+    def test_prompt(self, mock_stdout, mock_stdin):
+        mock_stdin.readline.return_value = ' hello '
+        self.assertEqual('hello', Farcy.prompt('my message'))
+        mock_stdout.write.assert_called_with('my message: ')
+        self.assertTrue(mock_stdout.flush.called)
