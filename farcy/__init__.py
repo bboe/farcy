@@ -18,49 +18,29 @@ Options:
 
 from __future__ import print_function
 from collections import defaultdict
-from datetime import datetime, timedelta, tzinfo
+from datetime import datetime
 from docopt import docopt
 from github3 import GitHub
 from github3.exceptions import GitHubError
 from update_checker import UpdateChecker
 import logging
 import os
-import re
 import stat
 import sys
 import tempfile
 import time
+from .const import (
+    NUMBER_RE, __version__, VERSION_STR, PR_ISSUE_COMMENT_FORMAT,
+    COMMIT_STATUS_FORMAT, FARCY_COMMENT_START)
 from .exceptions import FarcyException, HandlerException
-
+from .helpers import UTC, issues_by_line, subtract_issues_by_line
 
 """
 TODO:
 
-* Don't comment if already commented
 * Adjust rubocop settings
 
 """
-
-__version__ = '0.1b'
-NUMBER_RE = re.compile('(\d+)')
-VERSION_STR = 'farcy v{0}'.format(__version__)
-MD_VERSION_STR = ('[{0}](https://github.com/appfolio/farcy)'
-                  .format(VERSION_STR))
-PR_ISSUE_COMMENT_FORMAT = '_{0}_ {{0}}'.format(MD_VERSION_STR)
-COMMIT_STATUS_FORMAT = '{0} {{0}}'.format(VERSION_STR)
-
-
-class UTC(tzinfo):
-
-    """Provides a simple UTC timezone class.
-
-    Source: http://docs.python.org/release/2.4.2/lib/datetime-tzinfo.html
-
-    """
-
-    dst = lambda x, y: timedelta(0)
-    tzname = lambda x, y: 'UTC'
-    utcoffset = lambda x, y: timedelta(0)
 
 
 class Farcy(object):
@@ -268,6 +248,7 @@ class Farcy(object):
         issue_count = 0
         did_work = True
         exception = False
+        existing_comments = pr.review_comments()
         for pfile in pr.files():
             added = None
             if pfile.status == 'deleted':  # Ignore deleted files
@@ -297,17 +278,20 @@ class Farcy(object):
 
             try:
                 issues = self.get_issues(pfile)
+                issue_count += sum(len(x) for x in issues.values())
             except Exception:
                 self.log.exception('Failure with get_issues for {0}'
                                    .format(pfile.filename))
                 exception = True
                 continue
-            by_line = defaultdict(lambda: ['_{0}_\n'.format(MD_VERSION_STR)])
-            for lineno, line_issues in list(issues.items()):
+
+            by_line = defaultdict(lambda: [FARCY_COMMENT_START])
+            process_issues = subtract_issues_by_line(
+                issues, issues_by_line(existing_comments, pfile.filename))
+            for lineno, line_issues in process_issues.items():
                 if added is None or lineno in added:
                     by_line[lineno].extend(
-                        ['* {0}'.format(x) for x in line_issues])
-                    issue_count += len(line_issues)
+                        '* {0}'.format(x) for x in line_issues)
                     del issues[lineno]
 
             if issues:
