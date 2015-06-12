@@ -31,7 +31,7 @@ import tempfile
 import time
 from .const import (
     NUMBER_RE, __version__, VERSION_STR, PR_ISSUE_COMMENT_FORMAT,
-    COMMIT_STATUS_FORMAT, FARCY_COMMENT_START)
+    COMMIT_STATUS_FORMAT, FARCY_COMMENT_START, CONFIG_DIR)
 from .exceptions import FarcyException, HandlerException
 from .helpers import UTC, issues_by_line, subtract_issues_by_line
 
@@ -82,7 +82,7 @@ class Farcy(object):
     @staticmethod
     def get_session():
         """Fetch and/or load API authorization token for GITHUB."""
-        credential_file = os.path.expanduser('~/.config/farcy')
+        credential_file = os.path.join(CONFIG_DIR, 'github_auth')
         if os.path.isfile(credential_file):
             with open(credential_file) as fd:
                 token = fd.readline().strip()

@@ -2,11 +2,13 @@
 
 from __future__ import print_function
 from collections import defaultdict
+from .const import CONFIG_DIR
 from subprocess import CalledProcessError, STDOUT, check_output
 from update_checker import parse_version
 from .exceptions import HandlerException, HandlerNotReady
 import json
 import logging
+import os
 import re
 
 
@@ -14,7 +16,6 @@ import re
 try:
     from subprocess import DEVNULL
 except ImportError:
-    import os
     DEVNULL = open(os.devnull, 'wb')
 
 
@@ -112,6 +113,14 @@ class ExtHandler(object):
             raise  # Unexpected and unhandled exception
         self.verify_version(self.version_callback(version))
 
+    @property
+    def config_file_path(self):
+        """Return path to config file if file exists, else None."""
+        path = os.path.join(
+            CONFIG_DIR,
+            'handler_{0}.conf'.format(self.__class__.__name__.lower()))
+        return path if os.path.isfile(path) else None
+
     def process(self, filename):
         """Return a dictionary mapping line numbers to errors.
 
@@ -148,7 +157,9 @@ class Flake8(ExtHandler):
     RE = re.compile('[^:]+:(\d+):([^\n]+)\n')
 
     def _process(self, filename):
-        return self._regex_parse([filename])
+        config_path = self.config_file_path
+        command = ['--config', config_path] if config_path else []
+        return self._regex_parse(command + [filename])
 
     def version_callback(self, version):
         """Remove the extra version information."""
@@ -165,7 +176,11 @@ class JSXHint(ExtHandler):
     RE = re.compile('.*:(\d+):\d+: (.*)\n')
 
     def _process(self, filename):
-        return self._regex_parse(['--reporter', 'unix', filename])
+        command = ['--reporter', 'unix']
+        config_path = self.config_file_path
+        if config_path:
+            command += ['--config', config_path]
+        return self._regex_parse(command + [filename])
 
     def version_callback(self, version):
         """Return a parsed version string for the binary version."""
@@ -194,7 +209,12 @@ class Rubocop(ExtHandler):
     EXTENSIONS = ['.rb']
 
     def _process(self, filename):
-        data = json.loads(self.execute([self.BINARY, '-f', 'j', filename]))
+        command = [self.BINARY, '-f', 'j']
+        config_path = self.config_file_path
+        if config_path:
+            command += ['-c', config_path]
+
+        data = json.loads(self.execute(command + [filename]))
         retval = defaultdict(list)
         for offense in data.get('files', [{}])[0].get('offenses', []):
             retval[offense['location']['line']].append(
