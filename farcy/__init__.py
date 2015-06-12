@@ -1,15 +1,19 @@
 """Farcy, a code review bot for github pull requests.
 
-Usage: farcy.py [-D | --logging=LEVEL] [options] OWNER REPOSITORY
+Usage: farcy.py [-D | --logging=LEVEL]
+                [--exclude-path=PATTERN...]
+                [--limit-user=USER...] [options] OWNER REPOSITORY
 
 Options:
 
-  -s ID, --start=ID  The event id to start handling events from.
-  -D, --debug        Enable debugging mode. This enables all logging output
-                     and prevents the posting of comments.
-  --logging=LEVEL    Specify the log level* to output.
-  -h, --help         Show this screen.
-  --version          Show the program's version.
+  -s ID, --start=ID       The event id to start handling events from.
+  -D, --debug             Enable debugging mode. Enables all logging output
+                          and prevents the posting of comments.
+  --logging=LEVEL         Specify the log level* to output.
+  -h, --help              Show this screen.
+  --version               Show the program's version.
+  --exclude-path=PATTERN  Exclude paths that match pattern (npm_modules/*)
+  --limit-user=USER       Limit processed PRs to PRs created by USER
 
 * Available log levels:
     https://docs.python.org/3/library/logging.html#logging-levels
@@ -20,6 +24,7 @@ from __future__ import print_function
 from collections import defaultdict
 from datetime import datetime
 from docopt import docopt
+from fnmatch import fnmatch
 from github3 import GitHub
 from github3.exceptions import GitHubError
 from update_checker import UpdateChecker
@@ -119,7 +124,7 @@ class Farcy(object):
         return sys.stdin.readline().strip()
 
     def __init__(self, owner, repository, start_event=None, log_level=None,
-                 debug=False):
+                 debug=False, exclude_paths=None, limit_users=None):
         """Initialize an instance of Farcy that monitors owner/repository."""
         # Configure logging
         self.debug = debug
@@ -148,6 +153,9 @@ class Farcy(object):
         else:
             self.start_time = datetime.now(UTC())
             self.last_event_id = None
+
+        self.exclude_paths = exclude_paths or []
+        self.limit_users = limit_users
 
         self._load_handlers()
 
@@ -242,6 +250,11 @@ class Farcy(object):
             self.log.info('Handle PR called on {0} PullRequest #{1}'
                           .format(pr.state, pr.number))
             return
+        if self.limit_users is not None and \
+           pr.user.login not in self.limit_users:
+            self.log.info('Skipping PullRequest #{0} because user {1} is not '
+                          'whitelisted'.format(pr.number, pr.user.login))
+            return
         self.log.info('Handling PullRequest #{0}'.format(pr.number))
 
         sha = list(pr.commits())[-1].sha
@@ -250,6 +263,12 @@ class Farcy(object):
         exception = False
         existing_comments = pr.review_comments()
         for pfile in pr.files():
+            if any(fnmatch(pfile.filename, pattern) for pattern
+                   in self.exclude_paths):
+                self.log.debug('Ignoring blacklisted file: {0}'.format(
+                    pfile.filename))
+                continue
+
             added = None
             if pfile.status == 'deleted':  # Ignore deleted files
                 self.log.debug('Ignoring deleted file: {0}'
@@ -367,7 +386,8 @@ def main():
 
     try:
         Farcy(args['OWNER'], args['REPOSITORY'], args['--start'],
-              args['--logging'], args['--debug']).run()
+              args['--logging'], args['--debug'], args['--exclude-path'],
+              args['--limit-user']).run()
     except KeyboardInterrupt:
         sys.stderr.write('Farcy shutting down. Goodbye!\n')
         return 0
