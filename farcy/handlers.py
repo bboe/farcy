@@ -2,9 +2,9 @@
 
 from __future__ import print_function
 from collections import defaultdict
-from .const import CONFIG_DIR
 from subprocess import CalledProcessError, STDOUT, check_output
 from update_checker import parse_version
+from .const import CONFIG_DIR
 from .exceptions import HandlerException, HandlerNotReady
 import json
 import logging
