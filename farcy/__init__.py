@@ -383,11 +383,12 @@ class Farcy(object):
 def main():
     """Provide an entry point into Farcy."""
     args = docopt(__doc__, version=VERSION_STR)
+    limit_users = args['--limit-user'] or None
 
     try:
         Farcy(args['OWNER'], args['REPOSITORY'], args['--start'],
               args['--logging'], args['--debug'], args['--exclude-path'],
-              args['--limit-user']).run()
+              limit_users).run()
     except KeyboardInterrupt:
         sys.stderr.write('Farcy shutting down. Goodbye!\n')
         return 0
