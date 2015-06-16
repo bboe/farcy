@@ -17,6 +17,32 @@ class MockComment(object):
         self.position = position
 
 
+class PatchFunctionTest(unittest.TestCase):
+    def test_added_lines(self):
+        self.assertEqual({}, helpers.added_lines('@@+15'))
+        self.assertEqual({1: 1}, helpers.added_lines('@@+1\n+wah'))
+        self.assertEqual({15: 1}, helpers.added_lines('@@+15\n+wah'))
+        self.assertEqual({16: 2}, helpers.added_lines('@@+15\n \n+wah'))
+        self.assertEqual({1: 2}, helpers.added_lines('@@+1\n-\n+wah'))
+        self.assertEqual({15: 2}, helpers.added_lines('@@+15\n-\n+wah'))
+        self.assertEqual({16: 3}, helpers.added_lines('@@+15\n-\n \n+wah'))
+        self.assertEqual({1: 1, 15: 3},
+                         helpers.added_lines('@@+1\n+wah\n@@+15\n+foo'))
+
+    def test_added_lines_works_with_github_no_newline_message(self):
+        patch = """@@ -0,0 +1,5 @@
++class SomeClass
++  def yo(some_unused_param)
++    puts 'hi'
++  end
++end
+\ No newline at end of file"""
+        try:
+            helpers.added_lines(patch)
+        except AssertionError:
+            self.fail('added_lines() raised AssertionError')
+
+
 class CommentFunctionTest(unittest.TestCase):
 
     """Tests common Farcy handler extension methods."""

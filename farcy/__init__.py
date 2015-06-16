@@ -35,10 +35,10 @@ import sys
 import tempfile
 import time
 from .const import (
-    NUMBER_RE, __version__, VERSION_STR, PR_ISSUE_COMMENT_FORMAT,
+    __version__, VERSION_STR, PR_ISSUE_COMMENT_FORMAT,
     COMMIT_STATUS_FORMAT, FARCY_COMMENT_START, CONFIG_DIR)
 from .exceptions import FarcyException, HandlerException
-from .helpers import UTC, issues_by_line, subtract_issues_by_line
+from .helpers import UTC, issues_by_line, subtract_issues_by_line, added_lines
 
 """
 TODO:
@@ -54,25 +54,6 @@ class Farcy(object):
 
     EVENTS = {'PullRequestEvent', 'PushEvent'}
     _update_checked = False
-
-    @staticmethod
-    def added_lines(patch):
-        """Return a mapping of added line numbers to the patch line numbers."""
-        added = {}
-        lineno = None
-        position = 0
-        for line in patch.split('\n'):
-            if line.startswith('@@'):
-                lineno = int(NUMBER_RE.match(line.split('+')[1]).group(1))
-            elif line.startswith(' '):
-                lineno += 1
-            elif line.startswith('+'):
-                added[lineno] = position
-                lineno += 1
-            else:
-                assert line.startswith('-')
-            position += 1
-        return added
 
     @staticmethod
     def _raise_unexpected(code):
@@ -280,12 +261,12 @@ class Farcy(object):
                 continue
             elif pfile.status == 'modified':
                 # Only report issues on the changed lines
-                added = self.added_lines(pfile.patch)
+                added = added_lines(pfile.patch)
                 self.log.debug('Found {0} modified line{2} in {1}'
                                .format(len(added), pfile.filename,
                                        '' if len(added) == 1 else 's'))
             elif pfile.status == 'added':
-                added = self.added_lines(pfile.patch)
+                added = added_lines(pfile.patch)
                 self.log.debug('Found new file {0} with {1} new line{2}'
                                .format(pfile.filename, len(added),
                                        '' if len(added) == 1 else 's'))

@@ -3,9 +3,30 @@
 
 from collections import defaultdict
 from datetime import timedelta, tzinfo
-from .const import FARCY_COMMENT_START
+from .const import NUMBER_RE, FARCY_COMMENT_START
 
 IS_FARCY_COMMENT = FARCY_COMMENT_START.split('v')[0]
+
+
+def added_lines(patch):
+    """Return a mapping of added line numbers to the patch line numbers."""
+    added = {}
+    lineno = None
+    position = 0
+    for line in patch.split('\n'):
+        if line.startswith('@@'):
+            lineno = int(NUMBER_RE.match(line.split('+')[1]).group(1))
+        elif line.startswith(' '):
+            lineno += 1
+        elif line.startswith('+'):
+            added[lineno] = position
+            lineno += 1
+        elif line == "\ No newline at end of file":
+            continue
+        else:
+            assert line.startswith('-')
+        position += 1
+    return added
 
 
 def extract_issues(text):
