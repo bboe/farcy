@@ -270,7 +270,7 @@ class Farcy(object):
                 continue
 
             added = None
-            if pfile.status == 'deleted':  # Ignore deleted files
+            if pfile.status == 'removed':  # Ignore deleted files
                 self.log.debug('Ignoring deleted file: {0}'
                                .format(pfile.filename))
                 continue
@@ -278,7 +278,7 @@ class Farcy(object):
                 self.log.debug('Ignoring {0} file without change: {1}'
                                .format(pfile.status, pfile.filename))
                 continue
-            elif pfile.status == 'modified':
+            elif pfile.status in ('modified', 'renamed'):
                 # Only report issues on the changed lines
                 added = self.added_lines(pfile.patch)
                 self.log.debug('Found {0} modified line{2} in {1}'
