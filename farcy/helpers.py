@@ -3,7 +3,7 @@
 
 from collections import defaultdict
 from datetime import timedelta, tzinfo
-from .const import NUMBER_RE, FARCY_COMMENT_START
+from .const import FARCY_COMMENT_START, NUMBER_RE
 
 IS_FARCY_COMMENT = FARCY_COMMENT_START.split('v')[0]
 

@@ -38,7 +38,7 @@ from .const import (
     __version__, VERSION_STR, PR_ISSUE_COMMENT_FORMAT,
     COMMIT_STATUS_FORMAT, FARCY_COMMENT_START, CONFIG_DIR)
 from .exceptions import FarcyException, HandlerException
-from .helpers import UTC, issues_by_line, subtract_issues_by_line, added_lines
+from .helpers import added_lines, UTC, issues_by_line, subtract_issues_by_line
 
 """
 TODO:
