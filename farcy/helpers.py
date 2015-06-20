@@ -62,6 +62,18 @@ def issues_by_line(comments, path):
     return by_line
 
 
+def split_dict(data, keys):
+    """Split a dict in a dict with keys `keys` and one with the rest."""
+    with_keys = {}
+    without_keys = {}
+    for key, value in data.items():
+        if key in keys:
+            with_keys[key] = value
+        else:
+            without_keys[key] = value
+    return with_keys, without_keys
+
+
 def subtract_issues_by_line(by_line, by_line2):
     """Return a dict with all issues in by_line that are not in by_line2."""
     result = {}
