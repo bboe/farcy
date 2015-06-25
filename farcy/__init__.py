@@ -303,7 +303,7 @@ class Farcy(object):
                 args = (msg, sha, pfile.filename, lineno)
                 info = violations
                 if not self.debug:
-                    info = pr.create_review_comment(*args).html_url
+                    info = pr.create_review_comment(*args).html_url['href']
                 self.log.info('PR#{0} ({1}:{2}) COMMENT: "{3}"'.format(
                     pr.number, pfile.filename, lineno, info))
 
