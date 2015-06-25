@@ -53,7 +53,7 @@ def is_farcy_comment(text):
 
 
 def issues_by_line(comments, path):
-    """Return a dictionary mapping line nr to a list of issues for a path."""
+    """Return dictionary mapping patch line nr to list of issues for a path."""
     by_line = defaultdict(list)
     for comment in filter_comments_by_path(comments, path):
         issues = extract_issues(comment.body)

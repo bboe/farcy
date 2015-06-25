@@ -279,14 +279,19 @@ class Farcy(object):
                 continue
 
             issues, _ = split_dict(file_issues, added.keys())
+
+            # Maps patch line no to violations
+            issues = {
+                added[lineno]: value for lineno, value
+                in split_dict(file_issues, added.keys())[0].items()
+            }
             file_issue_count = sum(len(x) for x in issues.values())
             issue_count += file_issue_count
-            file_issues_to_comment = subtract_issues_by_line(
-                issues, issues_by_line(existing_comments, pfile.filename))
 
-            self.log('PR#{0}: Found {1} issue{2} for {3}'.format(
-                pr.number, file_issue_count,
-                's' if file_issue_count > 1 else '', pfile.filename))
+            existing_issues = issues_by_line(existing_comments, pfile.filename)
+
+            file_issues_to_comment = subtract_issues_by_line(
+                issues, existing_issues)
             reported_issue_count = sum(
                 len(x) for x in file_issues_to_comment.values())
 
@@ -295,13 +300,12 @@ class Farcy(object):
                     [FARCY_COMMENT_START] + ['* {}'.format(violation)
                                              for violation in violations])
 
-                position = added[lineno] if added else lineno
-                args = (msg, sha, pfile.filename, position)
+                args = (msg, sha, pfile.filename, lineno)
                 info = violations
                 if not self.debug:
                     info = pr.create_review_comment(*args).html_url
                 self.log.info('PR#{0} ({1}:{2}) COMMENT: "{3}"'.format(
-                    pr.number, pfile.filename, position, info))
+                    pr.number, pfile.filename, lineno, info))
 
             if reported_issue_count != file_issue_count:
                 unreported_issues = file_issue_count-reported_issue_count
