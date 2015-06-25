@@ -288,12 +288,22 @@ class Farcy(object):
             file_issue_count = sum(len(x) for x in issues.values())
             issue_count += file_issue_count
 
-            existing_issues = issues_by_line(existing_comments, pfile.filename)
+            self.log.info('PR#{0}: Found {1} issue{2} for {3}'.format(
+                          pr.number, file_issue_count,
+                          's' if file_issue_count > 1 else '', pfile.filename))
 
             file_issues_to_comment = subtract_issues_by_line(
-                issues, existing_issues)
+                issues, issues_by_line(existing_comments, pfile.filename))
             reported_issue_count = sum(
                 len(x) for x in file_issues_to_comment.values())
+
+            if reported_issue_count != file_issue_count:
+                unreported_issues = file_issue_count-reported_issue_count
+                self.log.debug(
+                    'PR#{0}: Not reporting {1} previously reported issue{2} '
+                    'for {3}'.format(
+                        pr.number, unreported_issues,
+                        '' if unreported_issues == 1 else 's', pfile.filename))
 
             for lineno, violations in sorted(file_issues_to_comment.items()):
                 msg = '\n'.join(
@@ -306,14 +316,6 @@ class Farcy(object):
                     info = pr.create_review_comment(*args).html_url['href']
                 self.log.info('PR#{0} ({1}:{2}) COMMENT: "{3}"'.format(
                     pr.number, pfile.filename, lineno, info))
-
-            if reported_issue_count != file_issue_count:
-                unreported_issues = file_issue_count-reported_issue_count
-                self.log.debug(
-                    'PR#{0}: Not reporting {1} previously reported issue{2} '
-                    'for {3}'.format(
-                        pr.number, unreported_issues,
-                        '' if unreported_issues == 1 else 's', pfile.filename))
 
         if issue_count > 0:
             status_msg = 'found {0} issue{1}'.format(
@@ -329,7 +331,7 @@ class Farcy(object):
                     sha, status_state,
                     description=COMMIT_STATUS_FORMAT.format(status_msg),
                     context=VERSION_STR)
-            self.log.info('PR#{0} COMMENT: "{1}"'.format(
+            self.log.info('PR#{0} COMMIT STATUS: "{1}"'.format(
                 pr.number, pr_msg))
 
     def PullRequestEvent(self, event):
