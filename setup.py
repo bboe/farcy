@@ -26,8 +26,8 @@ setup(name=PACKAGE_NAME,
                    'Programming Language :: Python :: 3.3',
                    'Programming Language :: Python :: 3.4'],
       dependency_links=[
-          'git+https://git@github.com/balloob/github3.py.git'
-          '@2d07e7c922863c640366386de3e0cc6ab8a9e162#egg=github3.py-1.0.0a2'
+          'https://github.com/balloob/github3.py/archive/'
+          'bugfix-pfile-contents.zip#egg=github3.py-1.0.0a2'
       ],
       description='A code review bot for github pull requests',
       entry_points={'console_scripts':
