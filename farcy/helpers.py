@@ -53,13 +53,25 @@ def is_farcy_comment(text):
 
 
 def issues_by_line(comments, path):
-    """Return a dictionary mapping line nr to a list of issues for a path."""
+    """Return dictionary mapping patch line nr to list of issues for a path."""
     by_line = defaultdict(list)
     for comment in filter_comments_by_path(comments, path):
         issues = extract_issues(comment.body)
         if issues:
             by_line[comment.position].extend(issues)
     return by_line
+
+
+def split_dict(data, keys):
+    """Split a dict in a dict with keys `keys` and one with the rest."""
+    with_keys = {}
+    without_keys = {}
+    for key, value in data.items():
+        if key in keys:
+            with_keys[key] = value
+        else:
+            without_keys[key] = value
+    return with_keys, without_keys
 
 
 def subtract_issues_by_line(by_line, by_line2):

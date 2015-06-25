@@ -38,14 +38,8 @@ from .const import (
     __version__, VERSION_STR, PR_ISSUE_COMMENT_FORMAT,
     COMMIT_STATUS_FORMAT, FARCY_COMMENT_START, CONFIG_DIR)
 from .exceptions import FarcyException, HandlerException
-from .helpers import added_lines, UTC, issues_by_line, subtract_issues_by_line
-
-"""
-TODO:
-
-* Adjust rubocop settings
-
-"""
+from .helpers import (
+    added_lines, UTC, issues_by_line, split_dict, subtract_issues_by_line)
 
 
 class Farcy(object):
@@ -216,7 +210,7 @@ class Farcy(object):
             return {}
         retval = {}
         with tempfile.NamedTemporaryFile() as fp:
-            fp.write(pfile.contents())
+            fp.write(pfile.contents().decoded)
             fp.flush()
             os.chmod(fp.name, stat.S_IRUSR)
 
@@ -277,38 +271,51 @@ class Farcy(object):
             did_work = True
 
             try:
-                issues = self.get_issues(pfile)
-                issue_count += sum(len(x) for x in issues.values())
+                file_issues = self.get_issues(pfile)
             except Exception:
                 self.log.exception('Failure with get_issues for {0}'
                                    .format(pfile.filename))
                 exception = True
                 continue
 
-            by_line = defaultdict(lambda: [FARCY_COMMENT_START])
-            process_issues = subtract_issues_by_line(
+            issues, _ = split_dict(file_issues, added.keys())
+
+            # Maps patch line no to violations
+            issues = {
+                added[lineno]: value for lineno, value
+                in split_dict(file_issues, added.keys())[0].items()
+            }
+            file_issue_count = sum(len(x) for x in issues.values())
+            issue_count += file_issue_count
+
+            self.log.info('PR#{0}: Found {1} issue{2} for {3}'.format(
+                          pr.number, file_issue_count,
+                          's' if file_issue_count > 1 else '', pfile.filename))
+
+            file_issues_to_comment = subtract_issues_by_line(
                 issues, issues_by_line(existing_comments, pfile.filename))
-            for lineno, line_issues in process_issues.items():
-                if added is None or lineno in added:
-                    by_line[lineno].extend(
-                        '* {0}'.format(x) for x in line_issues)
-                    del issues[lineno]
+            reported_issue_count = sum(
+                len(x) for x in file_issues_to_comment.values())
 
-            if issues:
-                count = sum(len(x) for x in issues.values())
-                self.log.debug('IGNORING {0} issue{1} on line{2} {3}'.format(
-                    count, '' if count == 1 else 's',
-                    '' if len(issues) == 1 else 's',
-                    ', '.join(str(x) for x in sorted(issues))))
+            if reported_issue_count != file_issue_count:
+                unreported_issues = file_issue_count-reported_issue_count
+                self.log.debug(
+                    'PR#{0}: Not reporting {1} previously reported issue{2} '
+                    'for {3}'.format(
+                        pr.number, unreported_issues,
+                        '' if unreported_issues == 1 else 's', pfile.filename))
 
-            for lineno, msgs in sorted(by_line.items()):
-                position = added[lineno] if added else lineno
-                args = ('\n'.join(msgs), sha, pfile.filename, position)
-                info = msgs
+            for lineno, violations in sorted(file_issues_to_comment.items()):
+                msg = '\n'.join(
+                    [FARCY_COMMENT_START] + ['* {}'.format(violation)
+                                             for violation in violations])
+
+                args = (msg, sha, pfile.filename, lineno)
+                info = violations
                 if not self.debug:
-                    info = pr.create_review_comment(*args).html_url
+                    info = pr.create_review_comment(*args).html_url['href']
                 self.log.info('PR#{0} ({1}:{2}) COMMENT: "{3}"'.format(
-                    pr.number, pfile.filename, position, info))
+                    pr.number, pfile.filename, lineno, info))
 
         if issue_count > 0:
             status_msg = 'found {0} issue{1}'.format(
@@ -324,7 +331,7 @@ class Farcy(object):
                     sha, status_state,
                     description=COMMIT_STATUS_FORMAT.format(status_msg),
                     context=VERSION_STR)
-            self.log.info('PR#{0} COMMENT: "{1}"'.format(
+            self.log.info('PR#{0} COMMIT STATUS: "{1}"'.format(
                 pr.number, pr_msg))
 
     def PullRequestEvent(self, event):

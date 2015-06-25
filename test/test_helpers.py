@@ -17,32 +17,6 @@ class MockComment(object):
         self.position = position
 
 
-class PatchFunctionTest(unittest.TestCase):
-    def test_added_lines(self):
-        self.assertEqual({}, helpers.added_lines('@@+15'))
-        self.assertEqual({1: 1}, helpers.added_lines('@@+1\n+wah'))
-        self.assertEqual({15: 1}, helpers.added_lines('@@+15\n+wah'))
-        self.assertEqual({16: 2}, helpers.added_lines('@@+15\n \n+wah'))
-        self.assertEqual({1: 2}, helpers.added_lines('@@+1\n-\n+wah'))
-        self.assertEqual({15: 2}, helpers.added_lines('@@+15\n-\n+wah'))
-        self.assertEqual({16: 3}, helpers.added_lines('@@+15\n-\n \n+wah'))
-        self.assertEqual({1: 1, 15: 3},
-                         helpers.added_lines('@@+1\n+wah\n@@+15\n+foo'))
-
-    def test_added_lines_works_with_github_no_newline_message(self):
-        patch = """@@ -0,0 +1,5 @@
-+class SomeClass
-+  def yo(some_unused_param)
-+    puts 'hi'
-+  end
-+end
-\ No newline at end of file"""
-        try:
-            helpers.added_lines(patch)
-        except AssertionError:
-            self.fail('added_lines() raised AssertionError')
-
-
 class CommentFunctionTest(unittest.TestCase):
 
     """Tests common Farcy handler extension methods."""
@@ -105,3 +79,46 @@ class CommentFunctionTest(unittest.TestCase):
         self.assertEqual(
             {1: ['Hello'], 5: ['Issue']},
             helpers.subtract_issues_by_line(issues, existing))
+
+
+class PatchFunctionTest(unittest.TestCase):
+    def test_added_lines(self):
+        self.assertEqual({}, helpers.added_lines('@@+15'))
+        self.assertEqual({1: 1}, helpers.added_lines('@@+1\n+wah'))
+        self.assertEqual({15: 1}, helpers.added_lines('@@+15\n+wah'))
+        self.assertEqual({16: 2}, helpers.added_lines('@@+15\n \n+wah'))
+        self.assertEqual({1: 2}, helpers.added_lines('@@+1\n-\n+wah'))
+        self.assertEqual({15: 2}, helpers.added_lines('@@+15\n-\n+wah'))
+        self.assertEqual({16: 3}, helpers.added_lines('@@+15\n-\n \n+wah'))
+        self.assertEqual({1: 1, 15: 3},
+                         helpers.added_lines('@@+1\n+wah\n@@+15\n+foo'))
+
+    def test_added_lines_works_with_github_no_newline_message(self):
+        patch = """@@ -0,0 +1,5 @@
++class SomeClass
++  def yo(some_unused_param)
++    puts 'hi'
++  end
++end
+\ No newline at end of file"""
+        try:
+            helpers.added_lines(patch)
+        except AssertionError:
+            self.fail('added_lines() raised AssertionError')
+
+
+class SplitDictTest(unittest.TestCase):
+    def test_split_dict(self):
+        test_dict = {1: 'a', 2: 'b', 3: 'c'}
+
+        with_keys, without_keys = helpers.split_dict(test_dict, [1, 2, 3])
+        self.assertEqual(test_dict, with_keys)
+        self.assertEqual({}, without_keys)
+
+        with_keys, without_keys = helpers.split_dict(test_dict, [])
+        self.assertEqual({}, with_keys)
+        self.assertEqual(test_dict, without_keys)
+
+        with_keys, without_keys = helpers.split_dict(test_dict, [2, 3])
+        self.assertEqual({2: 'b', 3: 'c'}, with_keys)
+        self.assertEqual({1: 'a'}, without_keys)
