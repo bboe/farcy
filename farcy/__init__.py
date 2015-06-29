@@ -66,8 +66,14 @@ class Farcy(object):
             raise
 
     @staticmethod
+    def _ensure_config_dir():
+        if not os.path.isdir(CONFIG_DIR):
+            os.makedirs(CONFIG_DIR, mode=0o700)
+
+    @staticmethod
     def get_session():
         """Fetch and/or load API authorization token for GITHUB."""
+        Farcy._ensure_config_dir()
         credential_file = os.path.join(CONFIG_DIR, 'github_auth')
         if os.path.isfile(credential_file):
             with open(credential_file) as fd:
