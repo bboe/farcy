@@ -27,12 +27,12 @@ from docopt import docopt
 from fnmatch import fnmatch
 from github3 import GitHub
 from github3.exceptions import GitHubError
+from shutil import rmtree
+from tempfile import mkdtemp
 from update_checker import UpdateChecker
 import logging
 import os
-import stat
 import sys
-import tempfile
 import time
 from .const import (
     __version__, VERSION_STR, PR_ISSUE_COMMENT_FORMAT,
@@ -215,13 +215,17 @@ class Farcy(object):
             self.log.debug('No handlers for extension {0}'.format(ext))
             return {}
         retval = {}
-        with tempfile.NamedTemporaryFile() as fp:
-            fp.write(pfile.contents().decoded)
-            fp.flush()
-            os.chmod(fp.name, stat.S_IRUSR)
 
+        try:
+            tmpdir = mkdtemp()
+            filepath = os.path.join(tmpdir, pfile.filename)
+            with open(filepath, 'wb') as fp:
+                fp.write(pfile.contents().decoded)
             for handler in handlers:
                 retval.update(handler.process(fp.name))
+        finally:
+            rmtree(tmpdir)
+
         return retval
 
     def handle_pr(self, pr):
