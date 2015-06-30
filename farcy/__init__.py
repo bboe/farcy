@@ -83,7 +83,7 @@ class Farcy(object):
         from getpass import getpass
         from github3 import authorize
 
-        user = Farcy.prompt('GITHUB Username')
+        user=Farcy.prompt('GITHUB Username')
         try:
             auth = authorize(
                 user, getpass('Password for {0}: '.format(user)), 'repo',
