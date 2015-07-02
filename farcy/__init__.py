@@ -1,6 +1,6 @@
 """Farcy, a code review bot for github pull requests.
 
-Usage: farcy.py [-D | --logging=LEVEL]
+Usage: farcy.py [-D | --logging=LEVEL] [--comments-per-pr=LIMIT]
                 [--exclude-path=PATTERN...]
                 [--limit-user=USER...] [options] OWNER REPOSITORY
 
@@ -14,6 +14,7 @@ Options:
   --version               Show the program's version.
   --exclude-path=PATTERN  Exclude paths that match pattern (npm_modules/*)
   --limit-user=USER       Limit processed PRs to PRs created by USER
+  --comments-per-pr=LIMIT Maximum number of comments added by Farcy per PR.
 
 * Available log levels:
     https://docs.python.org/3/library/logging.html#logging-levels
@@ -39,7 +40,8 @@ from .const import (
     COMMIT_STATUS_FORMAT, FARCY_COMMENT_START, CONFIG_DIR)
 from .exceptions import FarcyException, HandlerException
 from .helpers import (
-    added_lines, UTC, issues_by_line, split_dict, subtract_issues_by_line)
+    added_lines, filter_comments_from_farcy, issues_by_line, split_dict,
+    subtract_issues_by_line, UTC)
 
 
 class Farcy(object):
@@ -105,7 +107,8 @@ class Farcy(object):
         return sys.stdin.readline().strip()
 
     def __init__(self, owner, repository, start_event=None, log_level=None,
-                 debug=False, exclude_paths=None, limit_users=None):
+                 debug=False, exclude_paths=None, limit_users=None,
+                 pr_issue_report_limit=None):
         """Initialize an instance of Farcy that monitors owner/repository."""
         # Configure logging
         self.debug = debug
@@ -137,6 +140,7 @@ class Farcy(object):
 
         self.exclude_paths = exclude_paths or []
         self.limit_users = limit_users
+        self.pr_issue_report_limit = pr_issue_report_limit or 128
 
         self._load_handlers()
 
@@ -246,7 +250,9 @@ class Farcy(object):
         issue_count = 0
         did_work = True
         exception = False
-        existing_comments = pr.review_comments()
+        existing_comments = list(filter_comments_from_farcy(
+            pr.review_comments()))
+        comments_added = len(existing_comments)
         for pfile in pr.files():
             if any(fnmatch(pfile.filename, pattern) for pattern
                    in self.exclude_paths):
@@ -302,6 +308,9 @@ class Farcy(object):
                           pr.number, file_issue_count,
                           's' if file_issue_count > 1 else '', pfile.filename))
 
+            if comments_added > self.pr_issue_report_limit:
+                continue
+
             file_issues_to_comment = subtract_issues_by_line(
                 issues, issues_by_line(existing_comments, pfile.filename))
             reported_issue_count = sum(
@@ -326,6 +335,9 @@ class Farcy(object):
                     info = pr.create_review_comment(*args).html_url['href']
                 self.log.info('PR#{0} ({1}:{2}) COMMENT: "{3}"'.format(
                     pr.number, pfile.filename, lineno, info))
+                comments_added += 1
+                if comments_added >= self.pr_issue_report_limit:
+                    break
 
         if issue_count > 0:
             status_msg = 'found {0} issue{1}'.format(
@@ -386,7 +398,7 @@ def main():
     try:
         Farcy(args['OWNER'], args['REPOSITORY'], args['--start'],
               args['--logging'], args['--debug'], args['--exclude-path'],
-              limit_users).run()
+              limit_users, args['--comments-per-pr']).run()
     except KeyboardInterrupt:
         sys.stderr.write('Farcy shutting down. Goodbye!\n')
         return 0
