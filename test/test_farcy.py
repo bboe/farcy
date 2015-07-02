@@ -9,10 +9,32 @@ from mock import MagicMock, patch
 import unittest
 
 
+MockInfo = namedtuple('Info', ['decoded'])
+MockPFile = namedtuple('PFile', ['contents', 'filename'])
 MockResponse = namedtuple('MockResponse', ['content', 'status_code'])
 
 
 class FarcyTest(unittest.TestCase):
+
+    @patch('farcy.Farcy.get_session')
+    @patch('farcy.UpdateChecker')
+    def _farcy_instance(self, mock_get_session, mock_update_checker):
+        farcy = Farcy('dummy', 'dummy')
+        self.assertTrue(mock_get_session.called)
+        self.assertTrue(mock_update_checker.called)
+        return farcy
+
+    def test_get_issues__simple_module(self):
+        farcy = self._farcy_instance()
+        pfile = MockPFile(contents=lambda: MockInfo(decoded=b'"""A."""\n'),
+                          filename='a.py')
+        self.assertEqual({}, farcy.get_issues(pfile))
+
+    def test_get_issues__no_handlers(self):
+        farcy = self._farcy_instance()
+        pfile = MockPFile(contents=None, filename='')
+        self.assertEqual({}, farcy.get_issues(pfile))
+
     @patch('farcy.open', create=True)
     @patch('github3.authorize')
     @patch('getpass.getpass')
