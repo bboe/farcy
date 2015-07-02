@@ -308,7 +308,7 @@ class Farcy(object):
                           pr.number, file_issue_count,
                           's' if file_issue_count > 1 else '', pfile.filename))
 
-            if comments_added > self.pr_issue_report_limit:
+            if comments_added >= self.pr_issue_report_limit:
                 continue
 
             file_issues_to_comment = subtract_issues_by_line(
