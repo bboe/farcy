@@ -218,7 +218,7 @@ class Farcy(object):
 
         try:
             tmpdir = mkdtemp()
-            filepath = os.path.join(tmpdir, pfile.filename)
+            filepath = os.path.join(tmpdir, os.path.basename(pfile.filename))
             with open(filepath, 'wb') as fp:
                 fp.write(pfile.contents().decoded)
             for handler in handlers:
