@@ -40,8 +40,8 @@ from .const import (
     COMMIT_STATUS_FORMAT, FARCY_COMMENT_START, CONFIG_DIR)
 from .exceptions import FarcyException, HandlerException
 from .helpers import (
-    added_lines, filter_comments_from_farcy, issues_by_line, split_dict,
-    subtract_issues_by_line, UTC)
+    UTC, added_lines, filter_comments_from_farcy, issues_by_line, split_dict,
+    subtract_issues_by_line)
 
 
 class Farcy(object):
