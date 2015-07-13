@@ -2,7 +2,7 @@
 import os
 import re
 
-__version__ = '0.1b'
+__version__ = '0.1'
 NUMBER_RE = re.compile('(\d+)')
 VERSION_STR = 'farcy v{0}'.format(__version__)
 MD_VERSION_STR = ('[{0}](https://github.com/appfolio/farcy)'
