@@ -71,7 +71,6 @@ class FarcyTest(unittest.TestCase):
         mock_authorize.side_effect = TypeError
         self.assertRaises(TypeError, Farcy.get_session)
 
-
     @patch.object(GitHub, 'is_starred')
     @patch('farcy.open', create=True)
     @patch('farcy.os.path')

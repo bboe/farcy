@@ -62,6 +62,21 @@ def issues_by_line(comments, path):
     return by_line
 
 
+def process_user_list(user_list):
+    """Return a normalized set from an expansion of the user list.
+
+    A single item in the input list can contain a comma separated list of items
+    which will be expanded in the output set.
+
+    Each item will be normalized to its lowercase format for comparison.
+
+    """
+    users = []
+    for item in user_list:
+        users.extend(x.strip().lower() for x in item.split(','))
+    return set(users) if users else None
+
+
 def split_dict(data, keys):
     """Split a dict in a dict with keys `keys` and one with the rest."""
     with_keys = {}
