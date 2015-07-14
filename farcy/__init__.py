@@ -6,15 +6,21 @@ Usage: farcy.py [-D | --logging=LEVEL] [--comments-per-pr=LIMIT]
 
 Options:
 
-  -s ID, --start=ID       The event id to start handling events from.
-  -D, --debug             Enable debugging mode. Enables all logging output
-                          and prevents the posting of comments.
-  --logging=LEVEL         Specify the log level* to output.
-  -h, --help              Show this screen.
-  --version               Show the program's version.
-  --exclude-path=PATTERN  Exclude paths that match pattern (npm_modules/*)
-  --limit-user=USER       Limit processed PRs to PRs created by USER
-  --comments-per-pr=LIMIT Maximum number of comments added by Farcy per PR.
+  -s ID, --start=ID  The event id to start handling events from.
+  -D, --debug        Enable debugging mode. Enables all logging output
+                     and prevents the posting of comments.
+  --logging=LEVEL    Specify the log level* to output.
+  -h, --help         Show this screen.
+  --version          Show the program's version.
+  -X PATTERN, --exclude-path=PATTERN  Exclude paths that match pattern
+                                      (npm_modules/*).
+  -u USER, --limit-user=USER          Limit processed pull requests to pull
+                                      requests created by USER. This argument
+                                      can be provided multiple times, and each
+                                      USER token can contain a comma separated
+                                      list of users.
+  -C LIMIT, --comments-per-pr=LIMIT   Maximum number of comments added by
+                                      Farcy per pull request.
 
 * Available log levels:
     https://docs.python.org/3/library/logging.html#logging-levels
@@ -240,7 +246,7 @@ class Farcy(object):
                           .format(pr.state, pr.number))
             return
         if self.limit_users is not None and \
-           pr.user.login not in self.limit_users:
+           pr.user.login.lower() not in self.limit_users:
             self.log.info('Skipping PullRequest #{0} because user {1} is not '
                           'whitelisted'.format(pr.number, pr.user.login))
             return
@@ -390,10 +396,25 @@ class Farcy(object):
             getattr(self, event.type)(event)
 
 
+def process_user_list(user_list):
+    """Return a normalized set from an expansion of the user list.
+
+    A single item in the input list can contain a comma separated list of items
+    which will be expanded in the output set.
+
+    Each item will be normalized to its lowercase format for comparison.
+
+    """
+    users = []
+    for item in user_list:
+        users.extend(x.strip().lower() for x in item.split(','))
+    return set(users) if users else None
+
+
 def main():
     """Provide an entry point into Farcy."""
     args = docopt(__doc__, version=VERSION_STR)
-    limit_users = args['--limit-user'] or None
+    limit_users = process_user_list(args['--limit-user'])
 
     try:
         Farcy(args['OWNER'], args['REPOSITORY'], args['--start'],
