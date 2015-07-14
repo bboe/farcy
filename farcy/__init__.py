@@ -197,8 +197,9 @@ class Farcy(object):
                    or self.start_time and event.created_at < self.start_time:
                     break
 
-                self.log.debug('EVENT {eid} {time} {etype}'.format(
-                    eid=event.id, time=event.created_at, etype=event.type))
+                self.log.debug('EVENT {eid} {time} {etype} {user}'.format(
+                    eid=event.id, time=event.created_at, etype=event.type,
+                    user=event.actor.login))
 
                 # Add relevent events in reverse order
                 if event.type in self.EVENTS:
@@ -214,7 +215,6 @@ class Farcy(object):
             # Sleep the amount of time indicated in the API response
             sleep_time = int(itr.last_response.headers.get('X-Poll-Interval',
                                                            sleep_time))
-            self.log.debug('Sleeping for {0} seconds.'.format(sleep_time))
             time.sleep(sleep_time)
 
     def get_issues(self, pfile):
@@ -242,15 +242,16 @@ class Farcy(object):
         """Provide code review on pull request."""
         pr.refresh()  # Get most recent state
         if pr.state != 'open':  # Ignore closed PRs
-            self.log.info('Handle PR called on {0} PullRequest #{1}'
-                          .format(pr.state, pr.number))
+            self.log.debug('Handle PR called on {0} PullRequest #{1}'
+                           .format(pr.state, pr.number))
             return
         if self.limit_users is not None and \
-           pr.user.login.lower() not in self.limit_users:
-            self.log.info('Skipping PullRequest #{0} because user {1} is not '
-                          'whitelisted'.format(pr.number, pr.user.login))
+                pr.user.login.lower() not in self.limit_users:
+            self.log.debug('Skipping PullRequest #{0} because user {1} is not '
+                           'whitelisted'.format(pr.number, pr.user.login))
             return
-        self.log.info('Handling PullRequest #{0}'.format(pr.number))
+        self.log.info('Handling PullRequest #{0} by #{1}'
+                      .format(pr.number, pr.user.login))
 
         sha = list(pr.commits())[-1].sha
         issue_count = 0
@@ -310,9 +311,9 @@ class Farcy(object):
             file_issue_count = sum(len(x) for x in issues.values())
             issue_count += file_issue_count
 
-            self.log.info('PR#{0}: Found {1} issue{2} for {3}'.format(
-                          pr.number, file_issue_count,
-                          's' if file_issue_count > 1 else '', pfile.filename))
+            self.log.info('PR#{0}: Found {1} issue{3} for {2}'.format(
+                pr.number, file_issue_count, pfile.filename,
+                '' if file_issue_count == 1 else 's'))
 
             if comments_added >= self.pr_issue_report_limit:
                 continue
