@@ -107,6 +107,22 @@ class PatchFunctionTest(unittest.TestCase):
             self.fail('added_lines() raised AssertionError')
 
 
+class ProcessUserListTest(unittest.TestCase):
+    def test_process_user_list__comma_separated(self):
+        self.assertEqual(set(['bar', 'baz', 'foo']),
+                         helpers.process_user_list(['foo, bar ,baz']))
+
+    def test_process_user_list__convert_to_lower(self):
+        self.assertEqual(set(['hello']), helpers.process_user_list(['HELLO']))
+
+    def test_process_user_list__empty_input(self):
+        self.assertEqual(None, helpers.process_user_list([]))
+
+    def test_process_user_list__separate_items(self):
+        self.assertEqual(set(['bar', 'foo']),
+                         helpers.process_user_list(['foo', 'bar']))
+
+
 class SplitDictTest(unittest.TestCase):
     def test_split_dict(self):
         test_dict = {1: 'a', 2: 'b', 3: 'c'}

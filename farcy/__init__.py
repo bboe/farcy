@@ -46,8 +46,8 @@ from .const import (
     COMMIT_STATUS_FORMAT, FARCY_COMMENT_START, CONFIG_DIR)
 from .exceptions import FarcyException, HandlerException
 from .helpers import (
-    UTC, added_lines, filter_comments_from_farcy, issues_by_line, split_dict,
-    subtract_issues_by_line)
+    UTC, added_lines, filter_comments_from_farcy, issues_by_line,
+    process_user_list, split_dict, subtract_issues_by_line)
 
 
 class Farcy(object):
@@ -394,21 +394,6 @@ class Farcy(object):
         self.log.info('Monitoring {0}'.format(self.repo.html_url))
         for event in self.events():
             getattr(self, event.type)(event)
-
-
-def process_user_list(user_list):
-    """Return a normalized set from an expansion of the user list.
-
-    A single item in the input list can contain a comma separated list of items
-    which will be expanded in the output set.
-
-    Each item will be normalized to its lowercase format for comparison.
-
-    """
-    users = []
-    for item in user_list:
-        users.extend(x.strip().lower() for x in item.split(','))
-    return set(users) if users else None
 
 
 def main():
