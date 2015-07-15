@@ -28,7 +28,7 @@ Options:
 """
 
 from __future__ import print_function
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime
 from docopt import docopt
 from fnmatch import fnmatch
@@ -41,12 +41,11 @@ import logging
 import os
 import sys
 import time
-from .const import (
-    __version__, VERSION_STR, PR_ISSUE_COMMENT_FORMAT,
-    COMMIT_STATUS_FORMAT, FARCY_COMMENT_START, CONFIG_DIR)
+from .const import (__version__, CONFIG_DIR, FARCY_COMMENT_START,
+                    STATUS_FORMAT, VERSION_STR)
 from .exceptions import FarcyException, HandlerException
 from .helpers import (
-    UTC, added_lines, filter_comments_from_farcy, issues_by_line,
+    UTC, added_lines, filter_comments_from_farcy, issues_by_line, plural,
     process_user_list, split_dict, subtract_issues_by_line)
 
 
@@ -168,6 +167,29 @@ class Farcy(object):
                 self.log.info(result)
             self._update_checked = True
 
+    def _compute_pfile_stats(self, pfile, stats):
+        added = None
+        if any(fnmatch(pfile.filename, pattern) for pattern
+               in self.exclude_paths):
+            stats['blacklisted_files'] += 1
+        elif pfile.status == 'removed':  # Ignore deleted files
+            stats['deleted_files'] += 1
+        elif pfile.patch is None:  # Ignore files without changes
+            stats['unchanged_files'] += 1
+        elif pfile.status in ('modified', 'renamed'):
+            # Only report issues on the changed lines
+            added = added_lines(pfile.patch)
+            stats['modified_files'] += 1
+            stats['modified_lines'] += len(added)
+        elif pfile.status == 'added':
+            added = added_lines(pfile.patch)
+            stats['added_files'] += 1
+            stats['added_lines'] += len(added)
+        else:
+            self.log.critical('Unexpected file status {0} on {1}'
+                              .format(pfile.status, pfile.filename))
+        return added
+
     def _load_handlers(self):
         from . import handlers
         self._ext_to_handler = defaultdict(list)
@@ -242,56 +264,27 @@ class Farcy(object):
         """Provide code review on pull request."""
         pr.refresh()  # Get most recent state
         if pr.state != 'open':  # Ignore closed PRs
-            self.log.debug('Handle PR called on {0} PullRequest #{1}'
-                           .format(pr.state, pr.number))
+            self.log.debug('Skipping PR#{0}: invalid state ({1})'
+                           .format(pr.number, pr.state))
             return
         if self.limit_users is not None and \
                 pr.user.login.lower() not in self.limit_users:
-            self.log.debug('Skipping PullRequest #{0} because user {1} is not '
-                           'whitelisted'.format(pr.number, pr.user.login))
+            self.log.debug('Skipping PR#{0}: {1} is not whitelisted'
+                           .format(pr.number, pr.user.login))
             return
-        self.log.info('Handling PullRequest #{0} by #{1}'
+        self.log.info('Handling PR#{0} by {1}'
                       .format(pr.number, pr.user.login))
 
         sha = list(pr.commits())[-1].sha
-        issue_count = 0
-        did_work = True
         exception = False
         existing_comments = list(filter_comments_from_farcy(
             pr.review_comments()))
-        comments_added = len(existing_comments)
+        stats = Counter()
+        comments_on_github = len(existing_comments)
         for pfile in pr.files():
-            if any(fnmatch(pfile.filename, pattern) for pattern
-                   in self.exclude_paths):
-                self.log.debug('Ignoring blacklisted file: {0}'.format(
-                    pfile.filename))
+            added = self._compute_pfile_stats(pfile, stats)
+            if added is None:
                 continue
-
-            added = None
-            if pfile.status == 'removed':  # Ignore deleted files
-                self.log.debug('Ignoring deleted file: {0}'
-                               .format(pfile.filename))
-                continue
-            elif pfile.patch is None:  # Ignore files without changes
-                self.log.debug('Ignoring {0} file without change: {1}'
-                               .format(pfile.status, pfile.filename))
-                continue
-            elif pfile.status in ('modified', 'renamed'):
-                # Only report issues on the changed lines
-                added = added_lines(pfile.patch)
-                self.log.debug('Found {0} modified line{2} in {1}'
-                               .format(len(added), pfile.filename,
-                                       '' if len(added) == 1 else 's'))
-            elif pfile.status == 'added':
-                added = added_lines(pfile.patch)
-                self.log.debug('Found new file {0} with {1} new line{2}'
-                               .format(pfile.filename, len(added),
-                                       '' if len(added) == 1 else 's'))
-            else:
-                self.log.critical('Unexpected file status {0} on {1}'
-                                  .format(pfile.status, pfile.filename))
-                continue
-            did_work = True
 
             try:
                 file_issues = self.get_issues(pfile)
@@ -301,67 +294,60 @@ class Farcy(object):
                 exception = True
                 continue
 
-            issues, _ = split_dict(file_issues, added.keys())
-
-            # Maps patch line no to violations
-            issues = {
-                added[lineno]: value for lineno, value
-                in split_dict(file_issues, added.keys())[0].items()
-            }
-            file_issue_count = sum(len(x) for x in issues.values())
-            issue_count += file_issue_count
-
-            self.log.info('PR#{0}: Found {1} issue{3} for {2}'.format(
-                pr.number, file_issue_count, pfile.filename,
-                '' if file_issue_count == 1 else 's'))
-
-            if comments_added >= self.pr_issue_report_limit:
-                continue
+            # Maps patch line number to violation
+            issues = {added[lineno]: value for lineno, value in
+                      split_dict(file_issues, added.keys())[0].items()}
 
             file_issues_to_comment = subtract_issues_by_line(
                 issues, issues_by_line(existing_comments, pfile.filename))
-            reported_issue_count = sum(
-                len(x) for x in file_issues_to_comment.values())
 
-            if reported_issue_count != file_issue_count:
-                unreported_issues = file_issue_count-reported_issue_count
-                self.log.debug(
-                    'PR#{0}: Not reporting {1} previously reported issue{2} '
-                    'for {3}'.format(
-                        pr.number, unreported_issues,
-                        '' if unreported_issues == 1 else 's', pfile.filename))
+            file_issue_count = sum(len(x) for x in issues.values())
+            stats['issues'] += file_issue_count
+
+            unreported_issues = file_issue_count - sum(
+                len(x) for x in file_issues_to_comment.values())
+            if unreported_issues > 0:
+                stats['duplicate_issues'] += unreported_issues
 
             for lineno, violations in sorted(file_issues_to_comment.items()):
-                msg = '\n'.join(
-                    [FARCY_COMMENT_START] + ['* {}'.format(violation)
-                                             for violation in violations])
+                if comments_on_github >= self.pr_issue_report_limit:
+                    stats['skipped_issues'] += 1
+                    continue
 
-                args = (msg, sha, pfile.filename, lineno)
-                info = violations
-                if not self.debug:
-                    info = pr.create_review_comment(*args).html_url['href']
-                self.log.info('PR#{0} ({1}:{2}) COMMENT: "{3}"'.format(
-                    pr.number, pfile.filename, lineno, info))
-                comments_added += 1
-                if comments_added >= self.pr_issue_report_limit:
-                    break
+                if self.debug:
+                    # Only log each issue if we're in debugging mode because we
+                    # don't want the logs in non-debugging mode to be noisy.
+                    self.log.info('PR#{0} ({1}:{2}): {3}"'.format(
+                        pr.number, pfile.filename, lineno, violations))
+                else:
+                    msg = '\n'.join(
+                        [FARCY_COMMENT_START] + ['* {}'.format(violation)
+                                                 for violation in violations])
+                    (pr.create_review_comment(msg, sha, pfile.filename, lineno)
+                     .html_url['href'])
+                # `comments_on_github` is misleading when in debug mode.  What
+                # it really means is the number of comments that would be on
+                # github when not in debug mode.
+                comments_on_github += 1
 
-        if issue_count > 0:
-            status_msg = 'found {0} issue{1}'.format(
-                issue_count, '' if issue_count == 1 else 's')
+        # Log the statistics for the PR
+        for key, count in sorted(stats.items()):
+            if count > 0:
+                self.log.debug('PR#{0} {1:>16}: {2}'
+                               .format(pr.number, key, count))
+
+        if stats['issues'] > 0:
+            status_msg = 'found {0}'.format(plural(stats['issues'], 'issue'))
             status_state = 'error'
         else:
             status_msg = 'approves!'
             status_state = 'success'
-        if did_work and not exception:
-            pr_msg = PR_ISSUE_COMMENT_FORMAT.format(status_msg)
+        if not exception:
             if not self.debug:
                 self.repo.create_status(
-                    sha, status_state,
-                    description=COMMIT_STATUS_FORMAT.format(status_msg),
-                    context=VERSION_STR)
-            self.log.info('PR#{0} COMMIT STATUS: "{1}"'.format(
-                pr.number, pr_msg))
+                    sha, status_state, context=VERSION_STR,
+                    description=STATUS_FORMAT.format(status_msg))
+            self.log.info('PR#{0} STATUS: "{1}"'.format(pr.number, status_msg))
 
     def PullRequestEvent(self, event):
         """Check commits on new pull requests."""

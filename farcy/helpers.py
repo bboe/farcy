@@ -62,6 +62,20 @@ def issues_by_line(comments, path):
     return by_line
 
 
+def plural(items, word):
+    """Return number of items followed by the right form  of ``word``.
+
+    ``items`` can either be an int or an object whose cardinality can be
+    discovered via `len(items)`.
+
+    The plural of ``word`` is assumed to be made by adding an ``s``.
+
+    """
+    item_count = items if isinstance(items, int) else len(items)
+    word = word if item_count == 1 else word + 's'
+    return '{0} {1}'.format(item_count, word)
+
+
 def process_user_list(user_list):
     """Return a normalized set from an expansion of the user list.
 
