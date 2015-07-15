@@ -2,10 +2,10 @@
 
 from __future__ import print_function
 from collections import namedtuple
-from farcy import Farcy, FarcyException
+from farcy import Farcy, FarcyException, no_handler_debug_factory
 from github3 import GitHub, GitHubError
 from io import IOBase
-from mock import MagicMock, patch
+from mock import MagicMock, call, patch
 import logging
 import unittest
 
@@ -182,3 +182,30 @@ class FarcyTest(unittest.TestCase):
         self.assertEqual('hello', Farcy.prompt('my message'))
         mock_stdout.write.assert_called_with('my message: ')
         self.assertTrue(mock_stdout.flush.called)
+
+
+class NoHandlerDebugFactory(unittest.TestCase):
+    def setUp(self):
+        self.farcy = MagicMock()
+
+    def test_no_handler_factory__cache_response(self):
+        func = no_handler_debug_factory(1)
+        func(self.farcy, '.js')
+        func(self.farcy, '.js')
+        self.farcy.log.debug.assert_called_once_with(
+            'No handlers for extension .js')
+
+    def test_no_handler_factory__output_when_cache_expired(self):
+        func = no_handler_debug_factory(0)
+        func(self.farcy, '.js')
+        func(self.farcy, '.js')
+        calls = [call('No handlers for extension .js')] * 2
+        self.farcy.log.debug.assert_has_calls(calls)
+
+    def test_no_handler_factory__multiple_calls(self):
+        func = no_handler_debug_factory(1)
+        func(self.farcy, '.js')
+        func(self.farcy, '.css')
+        calls = [call('No handlers for extension .js'),
+                 call('No handlers for extension .css')]
+        self.farcy.log.debug.assert_has_calls(calls)
