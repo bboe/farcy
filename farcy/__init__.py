@@ -36,6 +36,7 @@ from github3 import GitHub
 from github3.exceptions import GitHubError
 from shutil import rmtree
 from tempfile import mkdtemp
+from timeit import default_timer
 from update_checker import UpdateChecker
 import logging
 import os
@@ -47,6 +48,18 @@ from .exceptions import FarcyException, HandlerException
 from .helpers import (
     UTC, added_lines, filter_comments_from_farcy, issues_by_line, plural,
     process_user_list, split_dict, subtract_issues_by_line)
+
+
+def no_handler_debug_factory(duration=3600):
+    """Return a function to cache 'No handler for...' messages for an hour."""
+    last_logged = {}
+
+    def log(obj, ext):
+        now = default_timer()
+        if now - last_logged.get(ext, 0) > duration:
+            obj.log.debug('No handlers for extension {0}'.format(ext))
+        last_logged[ext] = now
+    return log
 
 
 class Farcy(object):
@@ -244,7 +257,7 @@ class Farcy(object):
         ext = os.path.splitext(pfile.filename)[1]
         handlers = self._ext_to_handler.get(ext)
         if not handlers:  # Do nothing if there are no handlers
-            self.log.debug('No handlers for extension {0}'.format(ext))
+            self.no_handler_debug(ext)
             return {}
         retval = {}
 
@@ -348,6 +361,8 @@ class Farcy(object):
                     sha, status_state, context=VERSION_STR,
                     description=STATUS_FORMAT.format(status_msg))
             self.log.info('PR#{0} STATUS: "{1}"'.format(pr.number, status_msg))
+
+    no_handler_debug = no_handler_debug_factory()
 
     def PullRequestEvent(self, event):
         """Check commits on new pull requests."""
