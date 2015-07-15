@@ -107,6 +107,26 @@ class PatchFunctionTest(unittest.TestCase):
             self.fail('added_lines() raised AssertionError')
 
 
+class PluralTest(unittest.TestCase):
+    def test_plural__with_one__int(self):
+        self.assertEqual('1 unit', helpers.plural(1, 'unit'))
+
+    def test_plural__with_one__list(self):
+        self.assertEqual('1 unit', helpers.plural([1], 'unit'))
+
+    def test_plural__with_two__int(self):
+        self.assertEqual('2 units', helpers.plural(2, 'unit'))
+
+    def test_plural__with_two__list(self):
+        self.assertEqual('2 units', helpers.plural([1, 2], 'unit'))
+
+    def test_plural__with_zero__int(self):
+        self.assertEqual('0 units', helpers.plural(0, 'unit'))
+
+    def test_plural__with_zero__list(self):
+        self.assertEqual('0 units', helpers.plural([], 'unit'))
+
+
 class ProcessUserListTest(unittest.TestCase):
     def test_process_user_list__comma_separated(self):
         self.assertEqual(set(['bar', 'baz', 'foo']),
