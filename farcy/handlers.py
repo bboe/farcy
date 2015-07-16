@@ -28,6 +28,7 @@ class ExtHandler(object):
 
     ``BINARY`` is the name of an executable binary to look for.
     ``BINARY_VERSION`` is version of the binary expected.
+
     """
 
     BINARY = None
@@ -50,6 +51,7 @@ class ExtHandler(object):
         :param installed: The installed version number.
         :param exact: Raise HandlerException when there is not an exact
             match. Note that 0.27.0 is considered exact to 0.27.
+
         """
         exp = parse_version(cls.BINARY_VERSION)
         inp = parse_version(installed)
@@ -71,6 +73,7 @@ class ExtHandler(object):
 
         By default this method only calls the ``assert_usable`` instance method
         to see if the plugin's dependencies are available.
+
         """
         self._logger = logging.getLogger(__name__)
         self.name = type(self).__name__
@@ -129,6 +132,7 @@ class ExtHandler(object):
         the line.
 
         :param filename: The filename to analyze.
+
         """
         # This method should not be implemented by a subclass. Use _process
         # instead.
