@@ -25,17 +25,13 @@ setup(name=PACKAGE_NAME,
                    'Programming Language :: Python :: 3.2',
                    'Programming Language :: Python :: 3.3',
                    'Programming Language :: Python :: 3.4'],
-      dependency_links=[
-          'https://github.com/balloob/github3.py/archive/'
-          'bugfix-pfile-contents.zip#egg=github3.py-1.0.0a2'
-      ],
       description='A code review bot for github pull requests',
       entry_points={'console_scripts':
                     ['{0} = {0}:main'.format(PACKAGE_NAME)]},
       extras_require={'python': ['flake8 >= 2.2.5', 'pep257 >= 0.3.2']},
       install_requires=['botocore >= 0.74.0',
                         'docopt >= 0.6.2',
-                        'github3.py == 1.0.0a2',
+                        'github3.py >= 1.0.0a2',
                         'update_checker >= 0.11'],
       keywords=['code review', 'pull request'],
       license='Simplified BSD License',
