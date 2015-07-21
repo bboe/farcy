@@ -34,6 +34,7 @@ from docopt import docopt
 from fnmatch import fnmatch
 from github3 import GitHub
 from github3.exceptions import GitHubError
+from random import choice
 from shutil import rmtree
 from tempfile import mkdtemp
 from timeit import default_timer
@@ -42,8 +43,8 @@ import logging
 import os
 import sys
 import time
-from .const import (__version__, CONFIG_DIR, FARCY_COMMENT_START,
-                    STATUS_FORMAT, VERSION_STR)
+from .const import (__version__, APPROVAL_PHRASES, CONFIG_DIR,
+                    FARCY_COMMENT_START, STATUS_FORMAT, VERSION_STR)
 from .exceptions import FarcyException, HandlerException
 from .helpers import (
     UTC, added_lines, filter_comments_from_farcy, issues_by_line, plural,
@@ -353,7 +354,7 @@ class Farcy(object):
             status_msg = 'found {0}'.format(plural(stats['issues'], 'issue'))
             status_state = 'error'
         else:
-            status_msg = 'approves!'
+            status_msg = 'approves! {0}!'.format(choice(APPROVAL_PHRASES))
             status_state = 'success'
         if not exception:
             if not self.debug:
