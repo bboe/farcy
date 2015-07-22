@@ -15,4 +15,23 @@ FARCY_COMMENT_START = '_{0}_'.format(MD_VERSION_STR)
 
 NUMBER_RE = re.compile('(\d+)')
 
+APPROVAL_PHRASES = [x.strip() for x in """
+Amazing
+Bravo
+Excellent
+Great job
+Lookin' good
+Outstanding work
+Perfect
+Spectacular
+Tremendous
+Well done
+Wicked awesome
+Winning
+Wonderful
+Wow
+You are awesome
+You do not miss a thing
+""".split('\n') if x.strip()]
+
 STATUS_FORMAT = '{0} {{0}}'.format(VERSION_STR)
