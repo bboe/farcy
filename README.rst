@@ -54,6 +54,12 @@ required. Install via:
 
     $ gem install rubocop
 
+**JavaScript**: jsxhint is used to provide code review for JavaScript and JSX files. Install via:
+
+.. code-block:: bash
+
+    $ npm install -g jsxhint
+
 
 Copyright and license
 ---------------------
