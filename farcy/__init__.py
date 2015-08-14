@@ -2,7 +2,7 @@
 
 Usage: farcy.py [-D | --logging=LEVEL] [--comments-per-pr=LIMIT]
                 [--exclude-path=PATTERN...]
-                [--limit-user=USER...] [options] OWNER REPOSITORY
+                [--limit-user=USER...] [options] [REPOSITORY]
 
 Options:
 
@@ -402,12 +402,63 @@ class Farcy(object):
 def main():
     """Provide an entry point into Farcy."""
     args = docopt(__doc__, version=VERSION_STR)
-    limit_users = process_user_list(args['--limit-user'])
+
+    not_set_value = {
+        'start_event': None,
+        'debug': False,
+        'exclude_paths': [],
+        'limit_users': None,
+        'log_level': None,
+        'pr_issue_report_limit': None,
+    }
+    params = {
+        'start_event': args['--start'],
+        'debug': args['--debug'],
+        'exclude_paths': args['--exclude-path'],
+        'limit_users': args['--limit-user'] or None,
+        'log_level': args['--logging'],
+        'pr_issue_report_limit': args['--comments-per-pr'],
+    }
+
+    repository = args['REPOSITORY']
+    config_path = os.path.join(CONFIG_DIR, 'farcy.conf')
+    if os.path.isfile(config_path):
+        try:
+            import configparser  # PY3
+        except ImportError:
+            import ConfigParser as configparser  # PY2
+        config_file = configparser.SafeConfigParser()
+        config_file.read(config_path)
+
+        if repository is None and config_file.has_option('default',
+                                                         'repository'):
+            repository = config_file.get('default', 'repository')
+
+        for section in (repository, 'default'):
+            if not config_file.has_section(section):
+                continue
+            for key, cur_value in params.items():
+                if cur_value != not_set_value[key] or \
+                   not config_file.has_option(section, key):
+                    continue
+                value = config_file.get(section, key)
+                if key in ('exclude_paths', 'limit_users'):
+                    value = [item.strip() for item in value.split(',')]
+                elif key == 'debug':
+                    value = value.lower() in ('true', '1')
+                params[key] = value
+
+    if repository is None:
+        sys.stderr.write('No repository specified\n')
+        return 2
+    repo_parts = repository.split('/')
+    if len(repo_parts) != 2:
+        sys.stderr.write(
+            'Invalid repository specified: {0}\n'.format(repository))
+        return 2
 
     try:
-        Farcy(args['OWNER'], args['REPOSITORY'], args['--start'],
-              args['--logging'], args['--debug'], args['--exclude-path'],
-              limit_users, args['--comments-per-pr']).run()
+        Farcy(repo_parts[0], repo_parts[1], **params).run()
     except KeyboardInterrupt:
         sys.stderr.write('Farcy shutting down. Goodbye!\n')
         return 0
