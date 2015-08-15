@@ -151,6 +151,32 @@ class ExtHandler(object):
         return version.strip()
 
 
+class ESLint(ExtHandler):
+
+    """Provides feedback for JavaScript files using ESLint."""
+
+    BINARY = 'eslint'
+    BINARY_VERSION = '1.1.0'
+    EXTENSIONS = ['.js', '.jsx']
+
+    def _process(self, filename):
+        command = [self.BINARY, '--format', 'json']
+        config_path = self.config_file_path
+        if config_path:
+            command += ['--config', config_path]
+
+        data = json.loads(self.execute(command + [filename]))
+        retval = defaultdict(list)
+        for offense in data[0]['messages']:
+            retval[offense['line']].append(
+                '{message} ({ruleId})'.format(**offense))
+        return retval
+
+    def version_callback(self, version):
+        """Remove the 'v' prefix and trailing space."""
+        return version[1:].strip()
+
+
 class Flake8(ExtHandler):
 
     """Provides feedback for python files using flake8."""
