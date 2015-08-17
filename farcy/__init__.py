@@ -288,8 +288,11 @@ class Farcy(object):
             return
         self.log.info('Handling PR#{0} by {1}'
                       .format(pr.number, pr.user.login))
-
         sha = list(pr.commits())[-1].sha
+        if not self.debug:
+            self.repo.create_status(
+                sha, 'pending', context=VERSION_STR,
+                description='started investigation')
         exception = False
         existing_comments = list(filter_comments_from_farcy(
             pr.review_comments()))
