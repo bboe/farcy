@@ -82,6 +82,33 @@ class FarcyTest(unittest.TestCase):
         """Return a path to the example file."""
         return os.path.join(os.path.dirname(__file__), 'examples', filename)
 
+    def config(self, linter):
+        """Return config path for linter."""
+        return os.path.join(
+            os.path.dirname(__file__), 'configs',
+            'handler_{0}.conf'.format(linter.__class__.__name__.lower()))
+
+
+class ESLintTest(FarcyTest):
+
+    """Tests for the ESLint Handler."""
+
+    def setUp(self):
+        """Set up helpers used for each test case."""
+        self.linter = farcy.handlers.ESLint()
+        self.linter.config_file_path = self.config(self.linter)
+
+    def test_perfect_file(self):
+        """There should be no issues."""
+        errors = self.linter.process(self.path('no_issue.js'))
+        self.assertEqual({}, errors)
+
+    def test_single_error(self):
+        """A single error should be returned."""
+        errors = self.linter.process(self.path('single_issue.js'))
+        self.assertEqual({3: [('Unexpected console statement. (no-console)')]},
+                         errors)
+
 
 class Flake8Test(FarcyTest):
 

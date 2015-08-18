@@ -87,6 +87,9 @@ class ExtHandler(object):
             else:
                 raise
             self._plugin_ready = False
+        path = os.path.join(
+            CONFIG_DIR, 'handler_{0}.conf'.format(self.name.lower()))
+        self.config_file_path = path if os.path.isfile(path) else None
 
     def _regex_parse(self, binary_args, stderr=None):
         """Use the sublcasses RE value to parse the returned data."""
@@ -115,14 +118,6 @@ class ExtHandler(object):
                                        .format(self.BINARY))
             raise  # Unexpected and unhandled exception
         self.verify_version(self.version_callback(version))
-
-    @property
-    def config_file_path(self):
-        """Return path to config file if file exists, else None."""
-        path = os.path.join(
-            CONFIG_DIR,
-            'handler_{0}.conf'.format(self.__class__.__name__.lower()))
-        return path if os.path.isfile(path) else None
 
     def process(self, filename):
         """Return a dictionary mapping line numbers to errors.
