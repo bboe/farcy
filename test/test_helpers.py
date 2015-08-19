@@ -1,7 +1,9 @@
 """Farcy test file."""
 
 from __future__ import print_function
+import tempfile
 import unittest
+import farcy.exceptions as exceptions
 import farcy.helpers as helpers
 
 
@@ -15,6 +17,155 @@ class MockComment(object):
         self.body = body
         self.path = path
         self.position = position
+
+
+class ConfigTest(unittest.TestCase):
+    """Tests Config helper."""
+    def setUp(self):
+        self.config = helpers.Config()
+        self.tempdir = None
+
+    def test_dirty_checking(self):
+        self.config.debug = not self.config.debug
+        self.assertEqual(set(['debug']), self.config._dirty)
+
+    def test_not_mark_dirty_if_same_value(self):
+        self.config.debug = self.config.debug
+        self.assertEqual(set(), self.config._dirty)
+
+    def test_default_repo_from_config(self):
+        config = """
+[default]
+repository: appfolio/farcy
+        """
+
+        self._setup_config_file(config)
+        self.assertEqual('appfolio/farcy', self.config.repository)
+
+    def test_default_repo_from_config_raise_on_invalid(self):
+        config = """
+[default]
+repository: invalid_repo
+        """
+
+        with self.assertRaises(exceptions.FarcyException):
+            self._setup_config_file(config)
+
+    def test_config_file_values(self):
+        config = """
+[default]
+repository: appfolio/farcy
+start_event: 10
+debug: true
+exclude_paths: node_modules,vendor
+limit_users: balloob,bboe
+log_level: DEBUG
+pr_issue_report_limit: 100
+        """
+
+        self._setup_config_file(config)
+        self.assertEqual('appfolio/farcy', self.config.repository)
+        self.assertEqual(10, self.config.start_event)
+        self.assertEqual(True, self.config.debug)
+        self.assertEqual(['node_modules', 'vendor'], self.config.exclude_paths)
+        self.assertEqual(set(['balloob', 'bboe']), self.config.limit_users)
+        self.assertEqual('DEBUG', self.config.log_level)
+        self.assertEqual(100, self.config.pr_issue_report_limit)
+
+    def test_config_file_default_works(self):
+        config = """
+[default]
+start_event: 5
+        """
+
+        self._setup_config_file(config)
+        self.assertEqual(5, self.config.start_event)
+
+    def test_config_file_repo_specific_works(self):
+        config = """
+[appfolio/farcy]
+start_event: 5
+        """
+
+        self.config.repository = 'appfolio/farcy'
+        self._setup_config_file(config)
+        self.assertEqual(5, self.config.start_event)
+
+    def test_config_file_repo_specific_inherits_default(self):
+        config = """
+[default]
+limit_users: balloob
+
+[appfolio/farcy]
+start_event: 5
+        """
+
+        self.config.repository = 'appfolio/farcy'
+        self._setup_config_file(config)
+        self.assertEqual(set(['balloob']), self.config.limit_users)
+        self.assertEqual(5, self.config.start_event)
+
+    def test_config_file_only_sets_not_dirty(self):
+        config = """
+[appfolio/farcy]
+start_event: 5
+        """
+
+        self.config.start_event = 10
+        self._setup_config_file(config)
+        self.assertEqual(10, self.config.start_event)
+
+    def test_user_whitelisted_passes_if_not_set(self):
+        self.assertTrue(self.config.user_whitelisted('balloob'))
+
+    def test_user_whitelisted_works_if_set(self):
+        self.config.limit_users = ['bboe', 'balloob']
+        self.assertTrue(self.config.user_whitelisted('balloob'))
+        self.assertFalse(self.config.user_whitelisted('appfolio'))
+
+    def test_setting_repo(self):
+        repo = 'appfolio/farcy'
+        self.config.repository = repo
+        self.assertEqual(repo, self.config.repository)
+
+    def test_raise_if_invalid_repository(self):
+        with self.assertRaises(exceptions.FarcyException):
+            self.config.repository = 'invalid_repo'
+
+    def test_raise_if_invalid_log_level(self):
+        with self.assertRaises(exceptions.FarcyException):
+            self.config.log_level = 'invalid_log_level'
+
+    def test_cant_change_log_level_if_debug(self):
+        self.config.debug = True
+        self.assertEqual('DEBUG', self.config.log_level)
+        self.config.log_level = 'WARNING'
+        self.assertEqual('DEBUG', self.config.log_level)
+
+    def test_setting_values_via_dict(self):
+        data = {
+            'repository': 'appfolio/farcy',
+            'start_event': 1000,
+            'debug': False,
+            'exclude_paths': ['npm_modules', 'vendor'],
+            'limit_users': ['balloob', 'bboe'],
+            'log_level': 'WARNING',
+            'pr_issue_report_limit': 100
+        }
+
+        self.config.load_dict(data)
+
+        for attr, value in data.items():
+            self.assertEqual(value, getattr(self.config, attr))
+
+
+    def _setup_config_file(self, content):
+        with tempfile.NamedTemporaryFile() as fil:
+            fil.write(content.encode('utf-8'))
+            fil.flush()
+
+            self.config._config_path = fil.name
+            self.config.load_config_file()
 
 
 class CommentFunctionTest(unittest.TestCase):

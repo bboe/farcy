@@ -3,6 +3,7 @@
 from __future__ import print_function
 from collections import namedtuple
 from farcy import Farcy, FarcyException, no_handler_debug_factory
+from farcy.helpers import Config
 from github3 import GitHub, GitHubError
 from io import IOBase
 from mock import MagicMock, call, patch
@@ -26,8 +27,11 @@ class FarcyTest(unittest.TestCase):
 
     @patch('farcy.Farcy.get_session')
     @patch('farcy.UpdateChecker')
-    def _farcy_instance(self, mock_get_session, mock_update_checker, **kwargs):
-        farcy = Farcy('dummy', 'dummy', **kwargs)
+    def _farcy_instance(self, mock_get_session, mock_update_checker,
+                        config=Config()):
+        if config.repository is None:
+            config.repository = 'dummy/dummy'
+        farcy = Farcy(config)
         self.assertTrue(mock_get_session.called)
         self.assertTrue(mock_update_checker.called)
         return farcy
@@ -44,7 +48,9 @@ class FarcyTest(unittest.TestCase):
 
     def test_compute_pfile_stats__excluded(self):
         stats = {'blacklisted_files': 10}
-        farcy = self._farcy_instance(exclude_paths=['tmp/*'])
+        config = Config()
+        config.exclude_paths = ['tmp/*']
+        farcy = self._farcy_instance(config=config)
         self.assertEqual(None, farcy._compute_pfile_stats(
             mockpfile(filename='tmp/foo'), stats))
         self.assertEqual({'blacklisted_files': 11}, stats)
@@ -70,7 +76,9 @@ class FarcyTest(unittest.TestCase):
 
     def test_compute_pfile_stats__removed(self):
         stats = {'deleted_files': 10}
-        farcy = self._farcy_instance(exclude_paths=['tmp/*'])
+        config = Config()
+        config.exclude_paths = ['tmp/*']
+        farcy = self._farcy_instance(config=config)
         self.assertEqual(None, farcy._compute_pfile_stats(
             mockpfile(filename='a/tmp/b', status='removed'), stats))
         self.assertEqual({'deleted_files': 11}, stats)
