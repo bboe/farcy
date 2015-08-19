@@ -181,7 +181,7 @@ class Config(object):
 
     @property
     def log_level_int(self):
-        """Int value of the log level"""
+        """Int value of the log level."""
         return getattr(logging, self.log_level)
 
     def user_whitelisted(self, user):
