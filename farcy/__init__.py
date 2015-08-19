@@ -47,8 +47,8 @@ from .const import (__version__, APPROVAL_PHRASES, CONFIG_DIR,
                     FARCY_COMMENT_START, STATUS_FORMAT, VERSION_STR)
 from .exceptions import FarcyException, HandlerException
 from .helpers import (
-    UTC, added_lines, filter_comments_from_farcy, issues_by_line, plural,
-    process_user_list, split_dict, subtract_issues_by_line)
+    Config, UTC, added_lines, filter_comments_from_farcy, issues_by_line,
+    plural, split_dict, subtract_issues_by_line)
 
 
 def no_handler_debug_factory(duration=3600):
@@ -125,23 +125,14 @@ class Farcy(object):
         sys.stdout.flush()
         return sys.stdin.readline().strip()
 
-    def __init__(self, owner, repository, start_event=None, log_level=None,
-                 debug=False, exclude_paths=None, limit_users=None,
-                 pr_issue_report_limit=None):
+    def __init__(self, config):
         """Initialize an instance of Farcy that monitors owner/repository."""
         # Configure logging
-        self.debug = debug
+        self.config = config
         self.log = logging.getLogger(__name__)
-        if debug:
-            log_level = 'DEBUG'
+        log_level = 'DEBUG' if config.debug else config.log_level
         if log_level:
-            try:
-                level = int(getattr(logging, log_level.upper()))
-            except (AttributeError, ValueError):
-                raise FarcyException('Invalid log level: {0}'
-                                     .format(log_level))
-
-            self.log.setLevel(level)
+            self.log.setLevel(int(getattr(logging, self.config.log_level)))
             handler = logging.StreamHandler()
             handler.setFormatter(logging.Formatter(
                 '%(asctime)s %(levelname)8s %(message)s', '%Y/%m/%d %H:%M:%S'))
@@ -150,24 +141,21 @@ class Farcy(object):
         else:
             self.log.setLevel(logging.NOTSET)
 
-        if start_event:
+        if config.start_event:
             self.start_time = None
-            self.last_event_id = int(start_event) - 1
+            self.last_event_id = int(config.start_event) - 1
         else:
             self.start_time = datetime.now(UTC())
             self.last_event_id = None
 
-        self.exclude_paths = exclude_paths or []
-        self.limit_users = limit_users
-        self.pr_issue_report_limit = pr_issue_report_limit or 128
-
         self._load_handlers()
 
         # Initialize the repository to monitor
-        self.repo = self.get_session().repository(owner, repository)
+        self.repo = self.get_session().repository(
+            *self.config.repository.split('/'))
         if self.repo is None:
-            raise FarcyException('Invalid owner or repository name: {0}/{1}'
-                                 .format(owner, repository))
+            raise FarcyException('Invalid owner or repository name: {0}'
+                                 .format(self.config.repository))
         # Keep track of open pull requests
         self.open_prs = {}
         for pr in self.repo.pull_requests(state='all'):
@@ -184,7 +172,7 @@ class Farcy(object):
     def _compute_pfile_stats(self, pfile, stats):
         added = None
         if any(fnmatch(pfile.filename, pattern) for pattern
-               in self.exclude_paths):
+               in self.config.exclude_paths):
             stats['blacklisted_files'] += 1
         elif pfile.status == 'removed':  # Ignore deleted files
             stats['deleted_files'] += 1
@@ -281,8 +269,7 @@ class Farcy(object):
             self.log.debug('Skipping PR#{0}: invalid state ({1})'
                            .format(pr.number, pr.state))
             return
-        if self.limit_users is not None and \
-                pr.user.login.lower() not in self.limit_users:
+        if not self.config.user_whitelisted(pr.user.login):
             self.log.debug('Skipping PR#{0}: {1} is not whitelisted'
                            .format(pr.number, pr.user.login))
             return
@@ -324,11 +311,11 @@ class Farcy(object):
                 stats['duplicate_issues'] += unreported_issues
 
             for lineno, violations in sorted(file_issues_to_comment.items()):
-                if comments_on_github >= self.pr_issue_report_limit:
+                if comments_on_github >= self.config.pr_issue_report_limit:
                     stats['skipped_issues'] += 1
                     continue
 
-                if self.debug:
+                if self.config.debug:
                     # Only log each issue if we're in debugging mode because we
                     # don't want the logs in non-debugging mode to be noisy.
                     self.log.info('PR#{0} ({1}:{2}): {3}"'.format(
@@ -357,7 +344,7 @@ class Farcy(object):
             status_msg = 'approves! {0}!'.format(choice(APPROVAL_PHRASES))
             status_state = 'success'
         if not exception:
-            if not self.debug:
+            if not self.config.debug:
                 self.repo.create_status(
                     sha, status_state, context=VERSION_STR,
                     description=STATUS_FORMAT.format(status_msg))
@@ -403,62 +390,26 @@ def main():
     """Provide an entry point into Farcy."""
     args = docopt(__doc__, version=VERSION_STR)
 
-    not_set_value = {
-        'start_event': None,
-        'debug': False,
-        'exclude_paths': [],
-        'limit_users': None,
-        'log_level': None,
-        'pr_issue_report_limit': None,
-    }
-    params = {
+    config = Config(args['REPOSITORY'])
+    config.load_dict({
         'start_event': args['--start'],
         'debug': args['--debug'],
         'exclude_paths': args['--exclude-path'],
-        'limit_users': args['--limit-user'] or None,
+        'limit_users': args['--limit-user'] or config.limit_users,
         'log_level': args['--logging'],
-        'pr_issue_report_limit': args['--comments-per-pr'],
-    }
-
-    repository = args['REPOSITORY']
-    config_path = os.path.join(CONFIG_DIR, 'farcy.conf')
-    if os.path.isfile(config_path):
-        try:
-            import configparser  # PY3
-        except ImportError:
-            import ConfigParser as configparser  # PY2
-        config_file = configparser.SafeConfigParser()
-        config_file.read(config_path)
-
-        if repository is None and config_file.has_option('default',
-                                                         'repository'):
-            repository = config_file.get('default', 'repository')
-
-        for section in (repository, 'default'):
-            if not config_file.has_section(section):
-                continue
-            for key, cur_value in params.items():
-                if cur_value != not_set_value[key] or \
-                   not config_file.has_option(section, key):
-                    continue
-                value = config_file.get(section, key)
-                if key in ('exclude_paths', 'limit_users'):
-                    value = [item.strip() for item in value.split(',')]
-                elif key == 'debug':
-                    value = value.lower() in ('true', '1')
-                params[key] = value
-
-    if repository is None:
+        'pr_issue_report_limit':
+        args['--comments-per-pr'] or config.pr_issue_report_limit,
+    })
+    config.load_config_file()
+    if config.repository is None:
         sys.stderr.write('No repository specified\n')
         return 2
-    repo_parts = repository.split('/')
-    if len(repo_parts) != 2:
-        sys.stderr.write(
-            'Invalid repository specified: {0}\n'.format(repository))
-        return 2
+
+    print(config)
+    sys.exit()
 
     try:
-        Farcy(repo_parts[0], repo_parts[1], **params).run()
+        Farcy(config).run()
     except KeyboardInterrupt:
         sys.stderr.write('Farcy shutting down. Goodbye!\n')
         return 0

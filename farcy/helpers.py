@@ -2,8 +2,14 @@
 
 
 from collections import defaultdict
+try:
+    from configparser import ConfigParser  # PY3
+except ImportError:
+    from ConfigParser import SafeConfigParser as ConfigParser  # PY2
 from datetime import timedelta, tzinfo
-from .const import FARCY_COMMENT_START, NUMBER_RE
+import os
+from .const import FARCY_COMMENT_START, NUMBER_RE, CONFIG_DIR
+from .exceptions import FarcyException
 
 IS_FARCY_COMMENT = FARCY_COMMENT_START.split('v')[0]
 
@@ -112,6 +118,97 @@ def subtract_issues_by_line(by_line, by_line2):
         if filtered:
             result[key] = filtered
     return result
+
+
+class Config(object):
+
+    """Holds configuration for Farcy."""
+
+    def __init__(self, repository=None):
+        """Initialize a config with default values."""
+        self.repository = repository
+        self.start_event = None
+        self.debug = False
+        self.exclude_paths = []
+        self.limit_users = None
+        self.log_level = None
+        self.pr_issue_report_limit = 128
+
+        self._dirty = set()
+        self._config_path = os.path.join(CONFIG_DIR, 'farcy.conf')
+
+    def load_config_file(self):
+        """
+        Load default values from configuration values.
+
+        Will not overwrite any value if already set.
+        """
+        if not os.path.isfile(self._config_path):
+            return
+
+        allowed = ('start_event', 'debug', 'exclude_paths', 'limit_users',
+                   'log_level', 'pr_issue_report_limit')
+
+        config_file = ConfigParser()
+        config_file.read(self._config_path)
+        if self.repository is None and config_file.has_option(
+                'default', 'repository'):
+            self.repository = config_file.get('default', 'repository')
+
+        for section in (self.repository, 'default'):
+            if not config_file.has_section(section):
+                continue
+            for attr, cur_value in self.__dict__.items():
+                if not config_file.has_option(section, attr) or \
+                   attr not in allowed:
+                    continue
+                value = config_file.get(section, attr)
+                if attr == 'limit_users':
+                    value = process_user_list([value])
+                elif attr == 'exclude_paths':
+                    value = [item.strip() for item in value.split(',')]
+                elif attr == 'debug':
+                    value = value.lower() in ('true', '1')
+                elif attr in ('start_event', 'pr_issue_report_limit'):
+                    value = int(value)
+                setattr(self, attr, value)
+
+    def load_dict(self, values):
+        """Load values from a dict."""
+        for attr, value in values.items():
+            setattr(self, attr, value)
+
+    def user_whitelisted(self, user):
+        """Return if user is whitelisted."""
+        return self.limit_users is None or user.lower() in self.limit_users
+
+    def __setattr__(self, attr, value):
+        """
+        Set new config attribute.
+
+        Validates new attribute values and tracks if changed from default.
+        """
+        if attr in self.__dict__ and self.__dict__[attr] == value:
+            return
+        elif attr == 'repository' and value is not None:
+            repo_parts = value.split('/')
+            if len(repo_parts) != 2:
+                raise FarcyException(
+                    'Invalid repository specified: {0}'.format(value))
+        elif attr == 'log_level' and value is not None:
+            value = value.upper()
+            if value not in ('CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG',
+                             'NOTSET'):
+                raise FarcyException('Invalid log level specified: {0}'.format(
+                    value))
+
+        if attr in self.__dict__:
+            self._dirty.add(attr)
+        self.__dict__[attr] = value
+
+    def __repr__(self):
+        """String representation of the config."""
+        return '<Config {0}>'.format(self.__dict__)
 
 
 class UTC(tzinfo):
