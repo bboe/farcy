@@ -7,6 +7,7 @@ try:
 except ImportError:
     from ConfigParser import SafeConfigParser as ConfigParser  # PY2
 from datetime import timedelta, tzinfo
+import logging
 import os
 from .const import FARCY_COMMENT_START, NUMBER_RE, CONFIG_DIR
 from .exceptions import FarcyException
@@ -131,7 +132,7 @@ class Config(object):
         self.debug = False
         self.exclude_paths = []
         self.limit_users = None
-        self.log_level = None
+        self.log_level = 'NOTSET'
         self.pr_issue_report_limit = 128
 
         self._dirty = set()
@@ -178,6 +179,11 @@ class Config(object):
         for attr, value in values.items():
             setattr(self, attr, value)
 
+    @property
+    def log_level_int(self):
+        """Int value of the log level"""
+        return getattr(logging, self.log_level)
+
     def user_whitelisted(self, user):
         """Return if user is whitelisted."""
         return self.limit_users is None or user.lower() in self.limit_users
@@ -190,17 +196,21 @@ class Config(object):
         """
         if attr in self.__dict__ and self.__dict__[attr] == value:
             return
-        elif attr == 'repository' and value is not None:
-            repo_parts = value.split('/')
-            if len(repo_parts) != 2:
-                raise FarcyException(
-                    'Invalid repository specified: {0}'.format(value))
+        elif attr == 'debug' and value:
+            self.__dict__['log_level'] = 'DEBUG'
+        elif attr == 'log_level' and self.debug:
+            return
         elif attr == 'log_level' and value is not None:
             value = value.upper()
             if value not in ('CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG',
                              'NOTSET'):
                 raise FarcyException('Invalid log level specified: {0}'.format(
                     value))
+        elif attr == 'repository' and value is not None:
+            repo_parts = value.split('/')
+            if len(repo_parts) != 2:
+                raise FarcyException(
+                    'Invalid repository specified: {0}'.format(value))
 
         if attr in self.__dict__:
             self._dirty.add(attr)

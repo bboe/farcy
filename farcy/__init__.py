@@ -130,16 +130,14 @@ class Farcy(object):
         # Configure logging
         self.config = config
         self.log = logging.getLogger(__name__)
-        log_level = 'DEBUG' if config.debug else config.log_level
-        if log_level:
-            self.log.setLevel(int(getattr(logging, self.config.log_level)))
+        self.log.setLevel(config.log_level_int)
+        if config.log_level_int > logging.NOTSET:
             handler = logging.StreamHandler()
             handler.setFormatter(logging.Formatter(
                 '%(asctime)s %(levelname)8s %(message)s', '%Y/%m/%d %H:%M:%S'))
             self.log.addHandler(handler)
-            self.log.info('Logging enabled at level {0}'.format(log_level))
-        else:
-            self.log.setLevel(logging.NOTSET)
+            self.log.info('Logging enabled at level {0}'.format(
+                config.log_level))
 
         if config.start_event:
             self.start_time = None
@@ -396,7 +394,7 @@ def main():
         'debug': args['--debug'],
         'exclude_paths': args['--exclude-path'],
         'limit_users': args['--limit-user'] or config.limit_users,
-        'log_level': args['--logging'],
+        'log_level': args['--logging'] or config.log_level,
         'pr_issue_report_limit':
         args['--comments-per-pr'] or config.pr_issue_report_limit,
     })
@@ -404,9 +402,6 @@ def main():
     if config.repository is None:
         sys.stderr.write('No repository specified\n')
         return 2
-
-    print(config)
-    sys.exit()
 
     try:
         Farcy(config).run()
