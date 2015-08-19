@@ -132,6 +132,33 @@ start_event: 5
         with self.assertRaises(exceptions.FarcyException):
             self.config.repository = 'invalid_repo'
 
+    def test_raise_if_invalid_log_level(self):
+        with self.assertRaises(exceptions.FarcyException):
+            self.config.log_level = 'invalid_log_level'
+
+    def test_cant_change_log_level_if_debug(self):
+        self.config.debug = True
+        self.assertEqual('DEBUG', self.config.log_level)
+        self.config.log_level = 'WARNING'
+        self.assertEqual('DEBUG', self.config.log_level)
+
+    def test_setting_values_via_dict(self):
+        data = {
+            'repository': 'appfolio/farcy',
+            'start_event': 1000,
+            'debug': False,
+            'exclude_paths': ['npm_modules', 'vendor'],
+            'limit_users': ['balloob', 'bboe'],
+            'log_level': 'WARNING',
+            'pr_issue_report_limit': 100
+        }
+
+        self.config.load_dict(data)
+
+        for attr, value in data.items():
+            self.assertEqual(value, getattr(self.config, attr))
+
+
     def _setup_config_file(self, content):
         with tempfile.NamedTemporaryFile() as fil:
             fil.write(content.encode('utf-8'))
