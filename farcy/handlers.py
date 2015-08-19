@@ -87,6 +87,9 @@ class ExtHandler(object):
             else:
                 raise
             self._plugin_ready = False
+        path = os.path.join(
+            CONFIG_DIR, 'handler_{0}.conf'.format(self.name.lower()))
+        self.config_file_path = path if os.path.isfile(path) else None
 
     def _regex_parse(self, binary_args, stderr=None):
         """Use the sublcasses RE value to parse the returned data."""
@@ -116,14 +119,6 @@ class ExtHandler(object):
             raise  # Unexpected and unhandled exception
         self.verify_version(self.version_callback(version))
 
-    @property
-    def config_file_path(self):
-        """Return path to config file if file exists, else None."""
-        path = os.path.join(
-            CONFIG_DIR,
-            'handler_{0}.conf'.format(self.__class__.__name__.lower()))
-        return path if os.path.isfile(path) else None
-
     def process(self, filename):
         """Return a dictionary mapping line numbers to errors.
 
@@ -149,6 +144,32 @@ class ExtHandler(object):
     def version_callback(self, version):
         """Return a parsed version string for the binary version."""
         return version.strip()
+
+
+class ESLint(ExtHandler):
+
+    """Provides feedback for JavaScript files using ESLint."""
+
+    BINARY = 'eslint'
+    BINARY_VERSION = '1.1.0'
+    EXTENSIONS = ['.js', '.jsx']
+
+    def _process(self, filename):
+        command = [self.BINARY, '--format', 'json']
+        config_path = self.config_file_path
+        if config_path:
+            command += ['--config', config_path]
+
+        data = json.loads(self.execute(command + [filename]))
+        retval = defaultdict(list)
+        for offense in data[0]['messages']:
+            retval[offense['line']].append(
+                '{message} ({ruleId})'.format(**offense))
+        return retval
+
+    def version_callback(self, version):
+        """Remove the 'v' prefix and trailing space."""
+        return version[1:].strip()
 
 
 class Flake8(ExtHandler):
