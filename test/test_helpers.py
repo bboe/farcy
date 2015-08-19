@@ -35,8 +35,8 @@ class ConfigTest(unittest.TestCase):
 
     def test_default_repo_from_config(self):
         config = """
-        [default]
-        repository: appfolio/farcy
+[default]
+repository: appfolio/farcy
         """
 
         self._setup_config_file(config)
@@ -44,8 +44,8 @@ class ConfigTest(unittest.TestCase):
 
     def test_default_repo_from_config_raise_on_invalid(self):
         config = """
-        [default]
-        repository: invalid_repo
+[default]
+repository: invalid_repo
         """
 
         with self.assertRaises(exceptions.FarcyException):
@@ -53,14 +53,14 @@ class ConfigTest(unittest.TestCase):
 
     def test_config_file_values(self):
         config = """
-        [default]
-        repository: appfolio/farcy
-        start_event: 10
-        debug: true
-        exclude_paths: node_modules,vendor
-        limit_users: balloob,bboe
-        log_level: DEBUG
-        pr_issue_report_limit: 100
+[default]
+repository: appfolio/farcy
+start_event: 10
+debug: true
+exclude_paths: node_modules,vendor
+limit_users: balloob,bboe
+log_level: DEBUG
+pr_issue_report_limit: 100
         """
 
         self._setup_config_file(config)
@@ -74,8 +74,8 @@ class ConfigTest(unittest.TestCase):
 
     def test_config_file_default_works(self):
         config = """
-        [default]
-        start_event: 5
+[default]
+start_event: 5
         """
 
         self._setup_config_file(config)
@@ -83,8 +83,8 @@ class ConfigTest(unittest.TestCase):
 
     def test_config_file_repo_specific_works(self):
         config = """
-        [appfolio/farcy]
-        start_event: 5
+[appfolio/farcy]
+start_event: 5
         """
 
         self.config.repository = 'appfolio/farcy'
@@ -93,11 +93,11 @@ class ConfigTest(unittest.TestCase):
 
     def test_config_file_repo_specific_inherits_default(self):
         config = """
-        [default]
-        limit_users: balloob
+[default]
+limit_users: balloob
 
-        [appfolio/farcy]
-        start_event: 5
+[appfolio/farcy]
+start_event: 5
         """
 
         self.config.repository = 'appfolio/farcy'
@@ -107,8 +107,8 @@ class ConfigTest(unittest.TestCase):
 
     def test_config_file_only_sets_not_dirty(self):
         config = """
-        [appfolio/farcy]
-        start_event: 5
+[appfolio/farcy]
+start_event: 5
         """
 
         self.config.start_event = 10
