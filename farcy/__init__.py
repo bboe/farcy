@@ -193,14 +193,20 @@ class Farcy(object):
     def _load_handlers(self):
         from . import handlers
         self._ext_to_handler = defaultdict(list)
-        for handler in (handlers.Flake8, handlers.Pep257, handlers.Rubocop,
-                        handlers.ESLint):
+        active = []
+        for handler in (handlers.ESLint, handlers.Flake8, handlers.Pep257,
+                        handlers.Rubocop):
             try:
                 handler_inst = handler()
             except HandlerException:
                 continue
             for ext in handler.EXTENSIONS:
                 self._ext_to_handler[ext].append(handler_inst)
+            active.append(handler_inst.name)
+        if active:
+            self.log.info('Active handlers: %s', ', '.join(active))
+        else:
+            self.log.warning('No active handlers')
 
     def events(self):
         """Yield repository events in order."""
