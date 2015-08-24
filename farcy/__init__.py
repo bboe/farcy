@@ -33,6 +33,7 @@ from datetime import datetime
 from docopt import docopt
 from fnmatch import fnmatch
 from random import choice
+from requests import ConnectionError
 from shutil import rmtree
 from tempfile import mkdtemp
 from timeit import default_timer
@@ -133,6 +134,25 @@ class Farcy(object):
                               .format(pfile.status, pfile.filename))
         return added
 
+    def _event_loop(self, itr, events):
+        newest_id = None
+        for event in itr:
+            newest_id = newest_id or int(event.id)
+
+            # Stop when we've already seen something
+            if self.last_event_id and int(event.id) <= self.last_event_id \
+               or self.start_time and event.created_at < self.start_time:
+                break
+
+            self.log.debug('EVENT {eid} {time} {etype} {user}'.format(
+                eid=event.id, time=event.created_at, etype=event.type,
+                user=event.actor.login))
+
+            # Add relevent events in reverse order
+            if event.type in self.EVENTS:
+                events.insert(0, event)
+        return newest_id
+
     def _load_handlers(self):
         from . import handlers
         self._ext_to_handler = defaultdict(list)
@@ -159,25 +179,15 @@ class Farcy(object):
             # Fetch events
             events = []
             itr = self.repo.events(etag=etag)
-            itr_first_id = None
-            for event in itr:
-                itr_first_id = itr_first_id or int(event.id)
-
-                # Stop when we've already seen something
-                if self.last_event_id and int(event.id) <= self.last_event_id \
-                   or self.start_time and event.created_at < self.start_time:
-                    break
-
-                self.log.debug('EVENT {eid} {time} {etype} {user}'.format(
-                    eid=event.id, time=event.created_at, etype=event.type,
-                    user=event.actor.login))
-
-                # Add relevent events in reverse order
-                if event.type in self.EVENTS:
-                    events.insert(0, event)
+            try:
+                newest_id = self._event_loop(itr, events)
+            except ConnectionError as exc:
+                self.log.warn('ConnectionError {0}'.format(exc))
+                time.sleep(1)
+                continue
 
             etag = itr.etag
-            self.last_event_id = itr_first_id or self.last_event_id
+            self.last_event_id = newest_id or self.last_event_id
 
             # Yield events from oldest to newest
             for event in events:
