@@ -111,6 +111,8 @@ class Farcy(object):
                 self.log.info(result)
             self._update_checked = True
 
+        self.running = False
+
     def _compute_pfile_stats(self, pfile, stats):
         added = None
         if any(fnmatch(pfile.filename, pattern) for pattern
@@ -137,8 +139,6 @@ class Farcy(object):
     def _event_loop(self, itr, events):
         newest_id = None
         for event in itr:
-            newest_id = newest_id or int(event.id)
-
             # Stop when we've already seen something
             if self.last_event_id and int(event.id) <= self.last_event_id \
                or self.start_time and event.created_at < self.start_time:
@@ -147,6 +147,7 @@ class Farcy(object):
             self.log.debug('EVENT {eid} {time} {etype} {user}'.format(
                 eid=event.id, time=event.created_at, etype=event.type,
                 user=event.actor.login))
+            newest_id = newest_id or int(event.id)
 
             # Add relevent events in reverse order
             if event.type in self.EVENTS:
@@ -173,9 +174,16 @@ class Farcy(object):
 
     def events(self):
         """Yield repository events in order."""
+        if self.running:
+            raise FarcyException('Can only enter `events` once.')
+
         etag = None
-        sleep_time = None  # This value will be overwritten
-        while True:
+        sleep_time = None  # This value will be overwritten.
+        self.running = True
+        while self.running:
+            if sleep_time:  # Only sleep before we're about to make requests.
+                time.sleep(sleep_time)
+
             # Fetch events
             events = []
             itr = self.repo.events(etag=etag)
@@ -183,7 +191,7 @@ class Farcy(object):
                 newest_id = self._event_loop(itr, events)
             except ConnectionError as exc:
                 self.log.warn('ConnectionError {0}'.format(exc))
-                time.sleep(1)
+                sleep_time = 1
                 continue
 
             etag = itr.etag
@@ -193,10 +201,8 @@ class Farcy(object):
             for event in events:
                 yield event
 
-            # Sleep the amount of time indicated in the API response
             sleep_time = int(itr.last_response.headers.get('X-Poll-Interval',
                                                            sleep_time))
-            time.sleep(sleep_time)
 
     def get_issues(self, pfile):
         """Return a dictionary of issues for the file."""
