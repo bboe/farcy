@@ -149,3 +149,29 @@ class Pep257Test(FarcyTest):
         self.assertEqual({3: [('D203: 1 blank line required before class '
                                'docstring (found 0)')]},
                          errors)
+
+
+class RubocopTest(FarcyTest):
+
+    """Tests for the Rubocop Handler."""
+
+    def setUp(self):
+        """Set up helpers used for each test case."""
+        self.linter = farcy.handlers.Rubocop()
+        self.linter.config_file_path = self.config(self.linter)
+
+    def test_perfect_file(self):
+        """There should be no issues."""
+        errors = self.linter.process(self.path('no_issue.rb'))
+        self.assertEqual({}, errors)
+
+    def test_single_error(self):
+        """A single error should be returned.
+
+           Uses config to disable 1 issue.
+        """
+        errors = self.linter.process(self.path('single_issue.rb'))
+        self.assertEqual({3: [('Style/DefWithParentheses: Omit the parentheses'
+                               ' in defs when the method doesn\'t accept any '
+                               'arguments.')]},
+                         errors)
