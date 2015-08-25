@@ -7,8 +7,11 @@ try:
 except ImportError:
     from ConfigParser import SafeConfigParser as ConfigParser  # PY2
 from datetime import timedelta, tzinfo
+from github3 import GitHub
+from github3.exceptions import GitHubError
 import logging
 import os
+import sys
 from .const import FARCY_COMMENT_START, NUMBER_RE, CONFIG_DIR
 from .exceptions import FarcyException
 
@@ -36,6 +39,12 @@ def added_lines(patch):
     return added
 
 
+def ensure_config_dir():
+    """Ensure Farcy config dir exists."""
+    if not os.path.isdir(CONFIG_DIR):
+        os.makedirs(CONFIG_DIR, mode=0o700)
+
+
 def extract_issues(text):
     """Extract farcy violations from a text."""
     if not is_farcy_comment(text):
@@ -52,6 +61,39 @@ def filter_comments_from_farcy(comments):
 def filter_comments_by_path(comments, path):
     """Filter a comments iterable by a file path."""
     return (comment for comment in comments if comment.path == path)
+
+
+def get_session():
+    """Fetch and/or load API authorization token for GITHUB."""
+    ensure_config_dir()
+    credential_file = os.path.join(CONFIG_DIR, 'github_auth')
+    if os.path.isfile(credential_file):
+        with open(credential_file) as fd:
+            token = fd.readline().strip()
+        gh = GitHub(token=token)
+        try:  # Test connection before starting
+            gh.is_starred('github', 'gitignore')
+            return gh
+        except GitHubError as exc:
+            raise_unexpected(exc.code)
+            sys.stderr.write('Invalid saved credential file.\n')
+
+    from getpass import getpass
+    from github3 import authorize
+
+    user = prompt('GITHUB Username')
+    try:
+        auth = authorize(
+            user, getpass('Password for {0}: '.format(user)), 'repo',
+            'Farcy Code Reviewer',
+            two_factor_callback=lambda: prompt('Two factor token'))
+    except GitHubError as exc:
+        raise_unexpected(exc.code)
+        raise FarcyException(exc.message)
+
+    with open(credential_file, 'w') as fd:
+        fd.write('{0}\n{1}\n'.format(auth.token, auth.id))
+    return GitHub(token=auth.token)
 
 
 def is_farcy_comment(text):
@@ -83,6 +125,13 @@ def plural(items, word):
     return '{0} {1}'.format(item_count, word)
 
 
+def prompt(msg):
+    """Output message and return striped input."""
+    sys.stdout.write('{0}: '.format(msg))
+    sys.stdout.flush()
+    return sys.stdin.readline().strip()
+
+
 def process_user_list(user_list):
     """Return a normalized set from an expansion of the user list.
 
@@ -96,6 +145,16 @@ def process_user_list(user_list):
     for item in user_list:
         users.extend(x.strip().lower() for x in item.split(','))
     return set(users) if users else None
+
+
+def raise_unexpected(code):
+    """Called from with in an except block.
+
+    Re-raises the exception if we don't know how to handle it.
+
+    """
+    if code != 401:
+        raise
 
 
 def split_dict(data, keys):
@@ -134,9 +193,16 @@ class Config(object):
         self.limit_users = None
         self.log_level = 'NOTSET'
         self.pr_issue_report_limit = 128
+        self.session = None
 
         self._dirty = set()
         self._config_path = os.path.join(CONFIG_DIR, 'farcy.conf')
+
+    def ensure_session(self):
+        """Load or create GitHub session."""
+        if self.session is not None:
+            return
+        self.session = get_session()
 
     def load_config_file(self):
         """

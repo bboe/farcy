@@ -32,8 +32,6 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from docopt import docopt
 from fnmatch import fnmatch
-from github3 import GitHub
-from github3.exceptions import GitHubError
 from random import choice
 from shutil import rmtree
 from tempfile import mkdtemp
@@ -43,8 +41,8 @@ import logging
 import os
 import sys
 import time
-from .const import (__version__, APPROVAL_PHRASES, CONFIG_DIR,
-                    FARCY_COMMENT_START, STATUS_FORMAT, VERSION_STR)
+from .const import (__version__, APPROVAL_PHRASES, FARCY_COMMENT_START,
+                    STATUS_FORMAT, VERSION_STR)
 from .exceptions import FarcyException, HandlerException
 from .helpers import (
     Config, UTC, added_lines, filter_comments_from_farcy, issues_by_line,
@@ -70,61 +68,6 @@ class Farcy(object):
     EVENTS = {'PullRequestEvent', 'PushEvent'}
     _update_checked = False
 
-    @staticmethod
-    def _raise_unexpected(code):
-        """Called from with in an except block.
-
-        Re-raises the exception if we don't know how to handle it.
-
-        """
-        if code != 401:
-            raise
-
-    @staticmethod
-    def _ensure_config_dir():
-        if not os.path.isdir(CONFIG_DIR):
-            os.makedirs(CONFIG_DIR, mode=0o700)
-
-    @staticmethod
-    def get_session():
-        """Fetch and/or load API authorization token for GITHUB."""
-        Farcy._ensure_config_dir()
-        credential_file = os.path.join(CONFIG_DIR, 'github_auth')
-        if os.path.isfile(credential_file):
-            with open(credential_file) as fd:
-                token = fd.readline().strip()
-            gh = GitHub(token=token)
-            try:  # Test connection before starting
-                gh.is_starred('github', 'gitignore')
-                return gh
-            except GitHubError as exc:
-                Farcy._raise_unexpected(exc.code)
-                sys.stderr.write('Invalid saved credential file.\n')
-
-        from getpass import getpass
-        from github3 import authorize
-
-        user = Farcy.prompt('GITHUB Username')
-        try:
-            auth = authorize(
-                user, getpass('Password for {0}: '.format(user)), 'repo',
-                'Farcy Code Reviewer',
-                two_factor_callback=lambda: Farcy.prompt('Two factor token'))
-        except GitHubError as exc:
-            Farcy._raise_unexpected(exc.code)
-            raise FarcyException(exc.message)
-
-        with open(credential_file, 'w') as fd:
-            fd.write('{0}\n{1}\n'.format(auth.token, auth.id))
-        return GitHub(token=auth.token)
-
-    @staticmethod
-    def prompt(msg):
-        """Output message and return striped input."""
-        sys.stdout.write('{0}: '.format(msg))
-        sys.stdout.flush()
-        return sys.stdin.readline().strip()
-
     def __init__(self, config):
         """Initialize an instance of Farcy that monitors owner/repository."""
         # Configure logging
@@ -149,7 +92,7 @@ class Farcy(object):
         self._load_handlers()
 
         # Initialize the repository to monitor
-        self.repo = self.get_session().repository(
+        self.repo = config.session.repository(
             *self.config.repository.split('/'))
         if self.repo is None:
             raise FarcyException('Invalid owner or repository name: {0}'
@@ -401,6 +344,7 @@ def main():
         'pr_issue_report_limit':
         args['--comments-per-pr'] or config.pr_issue_report_limit,
     })
+    config.ensure_session()
     config.load_config_file()
     if config.repository is None:
         sys.stderr.write('No repository specified\n')

@@ -1,10 +1,17 @@
 """Farcy test file."""
 
 from __future__ import print_function
+from collections import namedtuple
+from github3 import GitHub, GitHubError
+from io import IOBase
+from mock import MagicMock, patch
 import tempfile
 import unittest
 import farcy.exceptions as exceptions
 import farcy.helpers as helpers
+
+
+MockResponse = namedtuple('MockResponse', ['content', 'status_code'])
 
 
 class MockComment(object):
@@ -158,7 +165,6 @@ start_event: 5
         for attr, value in data.items():
             self.assertEqual(value, getattr(self.config, attr))
 
-
     def _setup_config_file(self, content):
         with tempfile.NamedTemporaryFile() as fil:
             fil.write(content.encode('utf-8'))
@@ -232,6 +238,89 @@ class CommentFunctionTest(unittest.TestCase):
             helpers.subtract_issues_by_line(issues, existing))
 
 
+class GetSessionTest(unittest.TestCase):
+    @patch('farcy.helpers.open', create=True)
+    @patch('github3.authorize')
+    @patch('getpass.getpass')
+    @patch('farcy.helpers.prompt')
+    @patch('farcy.helpers.os.path')
+    def test_get_session__authenticate(self, mock_path, mock_prompt,
+                                       mock_getpass, mock_authorize,
+                                       mock_open):
+        mock_path.isfile.return_value = False
+        self.assertTrue(isinstance(helpers.get_session(), GitHub))
+        self.assertTrue(mock_prompt.called)
+        self.assertTrue(mock_getpass.called)
+        self.assertTrue(mock_open.called)
+
+    @patch('github3.authorize')
+    @patch('getpass.getpass')
+    @patch('farcy.helpers.prompt')
+    @patch('farcy.helpers.os.path')
+    def test_get_session__authenticate_with_exceptions(
+            self, mock_path, mock_prompt, mock_getpass, mock_authorize):
+        mock_path.isfile.return_value = False
+
+        mock_response = MockResponse(content='', status_code=401)
+        mock_authorize.side_effect = GitHubError(mock_response)
+        self.assertRaises(exceptions.FarcyException, helpers.get_session)
+
+        self.assertTrue(mock_prompt.called)
+        self.assertTrue(mock_getpass.called)
+
+        mock_response = MockResponse(content='', status_code=101)
+        mock_authorize.side_effect = GitHubError(mock_response)
+        self.assertRaises(GitHubError, helpers.get_session)
+
+        mock_authorize.side_effect = TypeError
+        self.assertRaises(TypeError, helpers.get_session)
+
+    @patch.object(GitHub, 'is_starred')
+    @patch('farcy.helpers.open', create=True)
+    @patch('farcy.helpers.os.path')
+    def test_get_session__from_credentials_file(self, mock_path, mock_open,
+                                                mock_is_starred):
+        mock_path.expanduser.return_value = 'mock_path'
+        mock_path.isfile.return_value = True
+        mock_open.return_value = MagicMock(spec=IOBase)
+        self.assertTrue(helpers.get_session())
+        self.assertTrue(mock_is_starred.called)
+
+    @patch('github3.authorize')
+    @patch('getpass.getpass')
+    @patch('farcy.helpers.prompt')
+    @patch('farcy.helpers.sys.stderr')
+    @patch.object(GitHub, 'is_starred')
+    @patch('farcy.helpers.open', create=True)
+    @patch('farcy.helpers.os.path')
+    def test_get_session__from_credentials_file__handled_exception(
+            self, mock_path, mock_open, mock_is_starred, mock_stderr,
+            mock_prompt, mock_getpass, mock_authorize):
+        mock_path.expanduser.return_value = 'mock_path'
+        mock_path.isfile.return_value = True
+        mock_open.return_value = MagicMock(spec=IOBase)
+
+        mock_response = MockResponse(content='', status_code=401)
+        mock_is_starred.side_effect = GitHubError(mock_response)
+        self.assertTrue(isinstance(helpers.get_session(), GitHub))
+        self.assertTrue(mock_stderr.write.called)
+        self.assertTrue(mock_prompt.called)
+        self.assertTrue(mock_getpass.called)
+        self.assertTrue(mock_open.called)
+
+    @patch.object(GitHub, 'is_starred')
+    @patch('farcy.helpers.open', create=True)
+    @patch('farcy.helpers.os.path')
+    def test_get_session__from_credentials_file__unhandled_exception(
+            self, mock_path, mock_open, mock_is_starred):
+        mock_path.expanduser.return_value = 'mock_path'
+        mock_path.isfile.return_value = True
+        mock_open.return_value = MagicMock(spec=IOBase)
+
+        mock_is_starred.side_effect = TypeError
+        self.assertRaises(TypeError, helpers.get_session)
+
+
 class PatchFunctionTest(unittest.TestCase):
     def test_added_lines(self):
         self.assertEqual({}, helpers.added_lines('@@+15'))
@@ -292,6 +381,16 @@ class ProcessUserListTest(unittest.TestCase):
     def test_process_user_list__separate_items(self):
         self.assertEqual(set(['bar', 'foo']),
                          helpers.process_user_list(['foo', 'bar']))
+
+
+class PromptTest(unittest.TestCase):
+    @patch('farcy.helpers.sys.stdin')
+    @patch('farcy.helpers.sys.stdout')
+    def test_prompt(self, mock_stdout, mock_stdin):
+        mock_stdin.readline.return_value = ' hello '
+        self.assertEqual('hello', helpers.prompt('my message'))
+        mock_stdout.write.assert_called_with('my message: ')
+        self.assertTrue(mock_stdout.flush.called)
 
 
 class SplitDictTest(unittest.TestCase):
