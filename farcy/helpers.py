@@ -4,6 +4,7 @@
 from collections import defaultdict
 try:
     from configparser import ConfigParser  # PY3
+    basestring = str
 except ImportError:
     from ConfigParser import SafeConfigParser as ConfigParser  # PY2
 from datetime import timedelta, tzinfo

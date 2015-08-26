@@ -191,7 +191,7 @@ class Farcy(object):
             try:
                 newest_id = self._event_loop(itr, events)
             except ConnectionError as exc:
-                self.log.warn('ConnectionError {0}'.format(exc))
+                self.log.warning('ConnectionError {0}'.format(exc))
                 sleep_time = 1
                 continue
 
@@ -330,7 +330,7 @@ class Farcy(object):
             if pr.head.ref in self.open_prs:
                 del self.open_prs[pr.head.ref]
             else:
-                self.log.warn('open_prs did not contain {0}'
+                self.log.warning('open_prs did not contain {0}'
                               .format(pr.head.ref))
         elif action == 'opened':
             self.open_prs[pr.head.ref] = pr
