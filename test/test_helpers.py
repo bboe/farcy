@@ -2,12 +2,12 @@
 
 from __future__ import print_function
 from collections import namedtuple
+from farcy import helpers
 from github3 import GitHub, GitHubError
 from io import IOBase
 from mock import MagicMock, patch
 import unittest
 import farcy.exceptions as exceptions
-import farcy.helpers as helpers
 
 
 MockResponse = namedtuple('MockResponse', ['content', 'status_code'])
@@ -29,8 +29,11 @@ class ConfigTest(unittest.TestCase):
     """Tests Config helper."""
 
     @patch('farcy.helpers.ConfigParser')
-    def _config_instance(self, callback, mock_config, repo=None,
+    @patch('os.path.isfile')
+    def _config_instance(self, callback, mock_is_file, mock_config, repo=None,
                          post_callback=None):
+        mock_is_file.called_with(helpers.Config.PATH).return_value = True
+
         if callback:
             callback(mock_config.return_value)
         config = helpers.Config(repo)
@@ -59,6 +62,7 @@ class ConfigTest(unittest.TestCase):
         def callback(mock_config):
             mock_config.has_section.return_value = True
             mock_config.items.return_value = {'start_event': '1337'}
+
         def post_callback(mock_config):
             mock_config.items.assert_called_with('a/b')
         config = self._config_instance(callback, repo='a/b',
@@ -74,6 +78,7 @@ class ConfigTest(unittest.TestCase):
                 'exclude_paths': 'node_modules,vendor',
                 'limit_users': 'balloob,bboe', 'log_level': 'DEBUG',
                 'pr_issue_report_limit': '100'}
+
         def post_callback(mock_config):
             mock_config.items.assert_called_with('DEFAULT')
         config = self._config_instance(callback, repo='a/b',

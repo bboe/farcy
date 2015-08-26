@@ -331,7 +331,7 @@ class Farcy(object):
                 del self.open_prs[pr.head.ref]
             else:
                 self.log.warning('open_prs did not contain {0}'
-                              .format(pr.head.ref))
+                                 .format(pr.head.ref))
         elif action == 'opened':
             self.open_prs[pr.head.ref] = pr
             self.handle_pr(pr)
