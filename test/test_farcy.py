@@ -35,8 +35,7 @@ class FarcyBaseTest(unittest.TestCase):
     @patch('farcy.helpers.get_session')
     @patch('farcy.UpdateChecker')
     def _farcy_instance(self, mock_update_checker, mock_get_session,
-                        config=Config()):
-        config.ensure_session()
+                        config=Config(None)):
         if config.repository is None:
             config.repository = 'dummy/dummy'
         farcy = Farcy(config)
@@ -57,7 +56,7 @@ class FarcyTest(FarcyBaseTest):
 
     def test_compute_pfile_stats__excluded(self):
         stats = {'blacklisted_files': 10}
-        config = Config()
+        config = Config(None)
         config.exclude_paths = ['tmp/*']
         farcy = self._farcy_instance(config=config)
         self.assertEqual(None, farcy._compute_pfile_stats(
@@ -85,7 +84,7 @@ class FarcyTest(FarcyBaseTest):
 
     def test_compute_pfile_stats__removed(self):
         stats = {'deleted_files': 10}
-        config = Config()
+        config = Config(None)
         config.exclude_paths = ['tmp/*']
         farcy = self._farcy_instance(config=config)
         self.assertEqual(None, farcy._compute_pfile_stats(
@@ -205,7 +204,6 @@ class FarcyEventTest(FarcyBaseTest):
         self.assertEqual(event, next(farcy.events()))
         self.assertEqual(0xDEADBEEF, farcy.last_event_id)
         self.assertTrue(mock_sleep.called_with(1))
-
 
     def test_events__prevent_duplicate_calls(self):
         farcy = self._farcy_instance()

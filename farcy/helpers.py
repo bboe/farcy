@@ -4,6 +4,7 @@
 from collections import defaultdict
 try:
     from configparser import ConfigParser  # PY3
+    basestring = str
 except ImportError:
     from ConfigParser import SafeConfigParser as ConfigParser  # PY2
 from datetime import timedelta, tzinfo
@@ -111,6 +112,32 @@ def issues_by_line(comments, path):
     return by_line
 
 
+def parse_bool(value):
+    """Return whether or not value represents a True or False value."""
+    if isinstance(value, basestring):
+        return value.lower() in ['1', 'on', 't', 'true', 'y', 'yes']
+    return bool(value)
+
+
+def parse_set(item_or_items, normalize=False):
+    """Return a set of unique tokens in item_or_items.
+
+    :param item_or_items: Can either be a string, or an iterable of strings.
+      Each string can contain one or more items separated by commas, these
+      items will be expanded, and empty tokens will be removed.
+    :param normalize: When true, lowercase all tokens.
+
+    """
+    if isinstance(item_or_items, basestring):
+        item_or_items = [item_or_items]
+
+    items = set()
+    for item in item_or_items:
+        for token in (x.strip() for x in item.split(',') if x.strip()):
+            items.add(token.lower() if normalize else token)
+    return items if items else None
+
+
 def plural(items, word):
     """Return number of items followed by the right form  of ``word``.
 
@@ -130,21 +157,6 @@ def prompt(msg):
     sys.stdout.write('{0}: '.format(msg))
     sys.stdout.flush()
     return sys.stdin.readline().strip()
-
-
-def process_user_list(user_list):
-    """Return a normalized set from an expansion of the user list.
-
-    A single item in the input list can contain a comma separated list of items
-    which will be expanded in the output set.
-
-    Each item will be normalized to its lowercase format for comparison.
-
-    """
-    users = []
-    for item in user_list:
-        users.extend(x.strip().lower() for x in item.split(','))
-    return set(users) if users else None
 
 
 def raise_unexpected(code):
@@ -184,107 +196,99 @@ class Config(object):
 
     """Holds configuration for Farcy."""
 
-    def __init__(self, repository=None):
-        """Initialize a config with default values."""
-        self.repository = repository
-        self.start_event = None
-        self.debug = False
-        self.exclude_paths = []
-        self.limit_users = None
-        self.log_level = 'NOTSET'
-        self.pr_issue_report_limit = 128
-        self.session = None
-
-        self._dirty = set()
-        self._config_path = os.path.join(CONFIG_DIR, 'farcy.conf')
-
-    def ensure_session(self):
-        """Load or create GitHub session."""
-        if self.session is not None:
-            return
-        self.session = get_session()
-
-    def load_config_file(self):
-        """
-        Load default values from configuration values.
-
-        Will not overwrite any value if already set.
-        """
-        if not os.path.isfile(self._config_path):
-            return
-
-        allowed = ('start_event', 'debug', 'exclude_paths', 'limit_users',
-                   'log_level', 'pr_issue_report_limit')
-
-        config_file = ConfigParser()
-        config_file.read(self._config_path)
-        if self.repository is None and config_file.has_option(
-                'default', 'repository'):
-            self.repository = config_file.get('default', 'repository')
-
-        for section in (self.repository, 'default'):
-            if not config_file.has_section(section):
-                continue
-            for attr, cur_value in self.__dict__.items():
-                if not config_file.has_option(section, attr) or \
-                   attr not in allowed:
-                    continue
-                value = config_file.get(section, attr)
-                if attr == 'limit_users':
-                    value = process_user_list([value])
-                elif attr == 'exclude_paths':
-                    value = [item.strip() for item in value.split(',')]
-                elif attr == 'debug':
-                    value = value.lower() in ('true', '1')
-                elif attr in ('start_event', 'pr_issue_report_limit'):
-                    value = int(value)
-                setattr(self, attr, value)
-
-    def load_dict(self, values):
-        """Load values from a dict."""
-        for attr, value in values.items():
-            setattr(self, attr, value)
+    ATTRIBUTES = {'debug', 'exclude_paths', 'limit_users', 'log_level',
+                  'pr_issue_report_limit', 'start_event'}
+    LOG_LEVELS = {'CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'NOTSET'}
+    PATH = os.path.join(CONFIG_DIR, 'farcy.conf')
 
     @property
     def log_level_int(self):
         """Int value of the log level."""
         return getattr(logging, self.log_level)
 
-    def user_whitelisted(self, user):
-        """Return if user is whitelisted."""
-        return self.limit_users is None or user.lower() in self.limit_users
+    @property
+    def session(self):
+        """Return GitHub session. Create if necessary."""
+        if self._session is None:
+            self._session = get_session()
+        return self._session
+
+    def __init__(self, repository):
+        """Initialize a config with default values."""
+        self._session = None
+        self.repository = repository
+        self.set_defaults()
+        self.load_config_file()
+
+    def __repr__(self):
+        """String representation of the config."""
+        return '<Config {0}>'.format(self.__dict__)
 
     def __setattr__(self, attr, value):
         """
         Set new config attribute.
 
         Validates new attribute values and tracks if changed from default.
+
         """
-        if attr in self.__dict__ and self.__dict__[attr] == value:
-            return
-        elif attr == 'debug' and value:
-            self.__dict__['log_level'] = 'DEBUG'
+        if attr == 'debug' and parse_bool(value):
+            # Force log level when in debug mode
+            setattr(self, 'log_level', 'DEBUG')
+        elif attr == 'exclude_paths':
+            if value is not None:
+                value = parse_set(value)
+        elif attr == 'limit_users':
+            if value:
+                value = parse_set(value, normalize=True)
         elif attr == 'log_level' and self.debug:
-            return
+            return  # Don't change level in debug mode
         elif attr == 'log_level' and value is not None:
             value = value.upper()
-            if value not in ('CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG',
-                             'NOTSET'):
-                raise FarcyException('Invalid log level specified: {0}'.format(
-                    value))
+            if value not in self.LOG_LEVELS:
+                raise FarcyException('Invalid log level: {0}'.format(value))
         elif attr == 'repository' and value is not None:
             repo_parts = value.split('/')
             if len(repo_parts) != 2:
-                raise FarcyException(
-                    'Invalid repository specified: {0}'.format(value))
+                raise FarcyException('Invalid repository: {0}'.format(value))
+        elif attr in ('pr_issue_report_limit', 'start_event'):
+            if value is not None:
+                value = int(value)
+        super(Config, self).__setattr__(attr, value)
 
-        if attr in self.__dict__:
-            self._dirty.add(attr)
-        self.__dict__[attr] = value
+    def load_config_file(self):
+        """Load value overrides from configuration file."""
+        if not os.path.isfile(self.PATH):
+            return
 
-    def __repr__(self):
-        """String representation of the config."""
-        return '<Config {0}>'.format(self.__dict__)
+        config_file = ConfigParser()
+        config_file.read(self.PATH)
+
+        if not self.repository and \
+                config_file.has_option('DEFAULT', 'repository'):
+            self.repository = config_file.get('DEFAULT', 'repository')
+
+        self.override(**dict(config_file.items(
+            self.repository if config_file.has_section(self.repository)
+            else 'DEFAULT')))
+
+    def override(self, **overrides):
+        """Override the config values passed as keyword arguments."""
+        for attr, value in overrides.items():
+            if attr in self.ATTRIBUTES and value:
+                setattr(self, attr, value)
+
+    def set_defaults(self):
+        """Set the default config values."""
+        self.start_event = None
+        self.debug = False
+        self.exclude_paths = None
+        self.limit_users = None
+        self.log_level = 'NOTSET'
+        self.pr_issue_report_limit = 128
+
+    def user_whitelisted(self, user):
+        """Return if user is whitelisted."""
+        return self.limit_users is None or user.lower() in self.limit_users
 
 
 class UTC(tzinfo):

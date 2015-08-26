@@ -115,8 +115,9 @@ class Farcy(object):
 
     def _compute_pfile_stats(self, pfile, stats):
         added = None
-        if any(fnmatch(pfile.filename, pattern) for pattern
-               in self.config.exclude_paths):
+        if self.config.exclude_paths is not None and \
+                any(fnmatch(pfile.filename, pattern) for pattern
+                    in self.config.exclude_paths):
             stats['blacklisted_files'] += 1
         elif pfile.status == 'removed':  # Ignore deleted files
             stats['deleted_files'] += 1
@@ -190,7 +191,7 @@ class Farcy(object):
             try:
                 newest_id = self._event_loop(itr, events)
             except ConnectionError as exc:
-                self.log.warn('ConnectionError {0}'.format(exc))
+                self.log.warning('ConnectionError {0}'.format(exc))
                 sleep_time = 1
                 continue
 
@@ -239,7 +240,7 @@ class Farcy(object):
         self.log.info('Handling PR#{0} by {1}'
                       .format(pr.number, pr.user.login))
         sha = list(pr.commits())[-1].sha
-        if not self.debug:
+        if not self.config.debug:
             self.repo.create_status(
                 sha, 'pending', context=VERSION_STR,
                 description='started investigation')
@@ -329,8 +330,8 @@ class Farcy(object):
             if pr.head.ref in self.open_prs:
                 del self.open_prs[pr.head.ref]
             else:
-                self.log.warn('open_prs did not contain {0}'
-                              .format(pr.head.ref))
+                self.log.warning('open_prs did not contain {0}'
+                                 .format(pr.head.ref))
         elif action == 'opened':
             self.open_prs[pr.head.ref] = pr
             self.handle_pr(pr)
@@ -357,17 +358,11 @@ def main():
     args = docopt(__doc__, version=VERSION_STR)
 
     config = Config(args['REPOSITORY'])
-    config.load_dict({
-        'start_event': args['--start'],
-        'debug': args['--debug'],
-        'exclude_paths': args['--exclude-path'],
-        'limit_users': args['--limit-user'] or config.limit_users,
-        'log_level': args['--logging'] or config.log_level,
-        'pr_issue_report_limit':
-        args['--comments-per-pr'] or config.pr_issue_report_limit,
-    })
-    config.ensure_session()
-    config.load_config_file()
+    config.override(start_event=args['--start'], debug=args['--debug'],
+                    exclude_paths=args['--exclude-path'],
+                    limit_users=args['--limit-user'],
+                    log_level=args['--logging'],
+                    pr_issue_report_limit=args['--comments-per-pr'])
     if config.repository is None:
         sys.stderr.write('No repository specified\n')
         return 2
