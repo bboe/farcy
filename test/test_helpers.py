@@ -5,7 +5,6 @@ from collections import namedtuple
 from github3 import GitHub, GitHubError
 from io import IOBase
 from mock import MagicMock, patch
-import tempfile
 import unittest
 import farcy.exceptions as exceptions
 import farcy.helpers as helpers
@@ -28,150 +27,117 @@ class MockComment(object):
 
 class ConfigTest(unittest.TestCase):
     """Tests Config helper."""
-    def setUp(self):
-        self.config = helpers.Config()
-        self.tempdir = None
 
-    def test_dirty_checking(self):
-        self.config.debug = not self.config.debug
-        self.assertEqual(set(['debug']), self.config._dirty)
-
-    def test_not_mark_dirty_if_same_value(self):
-        self.config.debug = self.config.debug
-        self.assertEqual(set(), self.config._dirty)
-
-    def test_default_repo_from_config(self):
-        config = """
-[default]
-repository: appfolio/farcy
-        """
-
-        self._setup_config_file(config)
-        self.assertEqual('appfolio/farcy', self.config.repository)
-
-    def test_default_repo_from_config_raise_on_invalid(self):
-        config = """
-[default]
-repository: invalid_repo
-        """
-
-        with self.assertRaises(exceptions.FarcyException):
-            self._setup_config_file(config)
-
-    def test_config_file_values(self):
-        config = """
-[default]
-repository: appfolio/farcy
-start_event: 10
-debug: true
-exclude_paths: node_modules,vendor
-limit_users: balloob,bboe
-log_level: DEBUG
-pr_issue_report_limit: 100
-        """
-
-        self._setup_config_file(config)
-        self.assertEqual('appfolio/farcy', self.config.repository)
-        self.assertEqual(10, self.config.start_event)
-        self.assertEqual(True, self.config.debug)
-        self.assertEqual(['node_modules', 'vendor'], self.config.exclude_paths)
-        self.assertEqual(set(['balloob', 'bboe']), self.config.limit_users)
-        self.assertEqual('DEBUG', self.config.log_level)
-        self.assertEqual(100, self.config.pr_issue_report_limit)
-
-    def test_config_file_default_works(self):
-        config = """
-[default]
-start_event: 5
-        """
-
-        self._setup_config_file(config)
-        self.assertEqual(5, self.config.start_event)
-
-    def test_config_file_repo_specific_works(self):
-        config = """
-[appfolio/farcy]
-start_event: 5
-        """
-
-        self.config.repository = 'appfolio/farcy'
-        self._setup_config_file(config)
-        self.assertEqual(5, self.config.start_event)
-
-    def test_config_file_repo_specific_inherits_default(self):
-        config = """
-[default]
-limit_users: balloob
-
-[appfolio/farcy]
-start_event: 5
-        """
-
-        self.config.repository = 'appfolio/farcy'
-        self._setup_config_file(config)
-        self.assertEqual(set(['balloob']), self.config.limit_users)
-        self.assertEqual(5, self.config.start_event)
-
-    def test_config_file_only_sets_not_dirty(self):
-        config = """
-[appfolio/farcy]
-start_event: 5
-        """
-
-        self.config.start_event = 10
-        self._setup_config_file(config)
-        self.assertEqual(10, self.config.start_event)
-
-    def test_user_whitelisted_passes_if_not_set(self):
-        self.assertTrue(self.config.user_whitelisted('balloob'))
-
-    def test_user_whitelisted_works_if_set(self):
-        self.config.limit_users = ['bboe', 'balloob']
-        self.assertTrue(self.config.user_whitelisted('balloob'))
-        self.assertFalse(self.config.user_whitelisted('appfolio'))
-
-    def test_setting_repo(self):
-        repo = 'appfolio/farcy'
-        self.config.repository = repo
-        self.assertEqual(repo, self.config.repository)
-
-    def test_raise_if_invalid_repository(self):
-        with self.assertRaises(exceptions.FarcyException):
-            self.config.repository = 'invalid_repo'
-
-    def test_raise_if_invalid_log_level(self):
-        with self.assertRaises(exceptions.FarcyException):
-            self.config.log_level = 'invalid_log_level'
+    @patch('farcy.helpers.ConfigParser')
+    def _config_instance(self, callback, mock_config, repo=None,
+                         post_callback=None):
+        if callback:
+            callback(mock_config.return_value)
+        config = helpers.Config(repo)
+        if post_callback:
+            post_callback(mock_config.return_value)
+        self.assertTrue(mock_config.called)
+        return config
 
     def test_cant_change_log_level_if_debug(self):
-        self.config.debug = True
-        self.assertEqual('DEBUG', self.config.log_level)
-        self.config.log_level = 'WARNING'
-        self.assertEqual('DEBUG', self.config.log_level)
+        config = self._config_instance(None, repo='a/b')
+        self.assertNotEqual('DEBUG', config.log_level)
+        config.debug = True
+        self.assertEqual('DEBUG', config.log_level)
+        config.log_level = 'WARNING'
+        self.assertEqual('DEBUG', config.log_level)
+
+    def test_config_file_is_overridable(self):
+        def callback(mock_config):
+            mock_config.items.return_value = {'start_event': '1337'}
+        config = self._config_instance(callback, repo='a/b')
+        self.assertEqual(1337, config.start_event)
+        config.start_event = 10
+        self.assertEqual(10, config.start_event)
+
+    def test_config_file_repo_specific_works(self):
+        def callback(mock_config):
+            mock_config.has_section.return_value = True
+            mock_config.items.return_value = {'start_event': '1337'}
+        def post_callback(mock_config):
+            mock_config.items.assert_called_with('a/b')
+        config = self._config_instance(callback, repo='a/b',
+                                       post_callback=post_callback)
+        self.assertEqual('a/b', config.repository)
+        self.assertEqual(1337, config.start_event)
+
+    def test_config_file_values(self):
+        def callback(mock_config):
+            mock_config.has_section.return_value = False
+            mock_config.items.return_value = {
+                'start_event': '10', 'debug': True,
+                'exclude_paths': 'node_modules,vendor',
+                'limit_users': 'balloob,bboe', 'log_level': 'DEBUG',
+                'pr_issue_report_limit': '100'}
+        def post_callback(mock_config):
+            mock_config.items.assert_called_with('DEFAULT')
+        config = self._config_instance(callback, repo='a/b',
+                                       post_callback=post_callback)
+        self.assertEqual('a/b', config.repository)
+        self.assertEqual(10, config.start_event)
+        self.assertEqual(True, config.debug)
+        self.assertEqual({'node_modules', 'vendor'}, config.exclude_paths)
+        self.assertEqual({'balloob', 'bboe'}, config.limit_users)
+        self.assertEqual('DEBUG', config.log_level)
+        self.assertEqual(100, config.pr_issue_report_limit)
+
+    def test_default_repo_from_config(self):
+        def callback(mock_config):
+            mock_config.get.return_value = 'appfolio/farcy'
+        config = self._config_instance(callback)
+        self.assertEqual('appfolio/farcy', config.repository)
+
+    def test_default_repo_from_config_raise_on_invalid(self):
+        def callback(mock_config):
+            mock_config.get.return_value = 'invalid_repo'
+        with self.assertRaises(exceptions.FarcyException):
+            self._config_instance(callback)
+
+    def test_raise_if_invalid_log_level(self):
+        config = self._config_instance(None, repo='a/b')
+        with self.assertRaises(exceptions.FarcyException):
+            config.log_level = 'invalid_log_level'
+
+    def test_raise_if_invalid_repository(self):
+        config = self._config_instance(None, repo='a/b')
+        with self.assertRaises(exceptions.FarcyException):
+            config.repository = 'invalid_repo'
+
+    def test_setting_repo(self):
+        config = self._config_instance(None, repo='a/b')
+        self.assertEqual('a/b', config.repository)
+        config.repository = 'appfolio/farcy'
+        self.assertEqual('appfolio/farcy', config.repository)
 
     def test_setting_values_via_dict(self):
+        config = self._config_instance(None, repo='appfolio/farcy')
         data = {
-            'repository': 'appfolio/farcy',
             'start_event': 1000,
             'debug': False,
-            'exclude_paths': ['npm_modules', 'vendor'],
-            'limit_users': ['balloob', 'bboe'],
+            'exclude_paths': {'npm_modules', 'vendor'},
+            'limit_users': {'balloob', 'bboe'},
             'log_level': 'WARNING',
             'pr_issue_report_limit': 100
         }
 
-        self.config.load_dict(data)
-
+        config.override(**data)
         for attr, value in data.items():
-            self.assertEqual(value, getattr(self.config, attr))
+            self.assertEqual(value, getattr(config, attr))
 
-    def _setup_config_file(self, content):
-        with tempfile.NamedTemporaryFile() as fil:
-            fil.write(content.encode('utf-8'))
-            fil.flush()
+    def test_user_whitelisted_passes_if_not_set(self):
+        config = self._config_instance(None, repo='a/b')
+        self.assertTrue(config.user_whitelisted('balloob'))
 
-            self.config._config_path = fil.name
-            self.config.load_config_file()
+    def test_user_whitelisted_works_if_set(self):
+        config = self._config_instance(None, repo='a/b')
+        config.limit_users = ['bboe', 'balloob']
+        self.assertTrue(config.user_whitelisted('balloob'))
+        self.assertFalse(config.user_whitelisted('appfolio'))
 
 
 class CommentFunctionTest(unittest.TestCase):
@@ -367,20 +333,27 @@ class PluralTest(unittest.TestCase):
         self.assertEqual('0 units', helpers.plural([], 'unit'))
 
 
-class ProcessUserListTest(unittest.TestCase):
-    def test_process_user_list__comma_separated(self):
-        self.assertEqual(set(['bar', 'baz', 'foo']),
-                         helpers.process_user_list(['foo, bar ,baz']))
+class ParseSet(unittest.TestCase):
+    def test_parse_set__comma_separated_as_string(self):
+        self.assertEqual({'bar', 'bAz', 'foo'},
+                         helpers.parse_set('foo, bar ,bAz'))
 
-    def test_process_user_list__convert_to_lower(self):
-        self.assertEqual(set(['hello']), helpers.process_user_list(['HELLO']))
+    def test_parse_set__comma_separated_in_list(self):
+        self.assertEqual({'bar', 'baz', 'foo'},
+                         helpers.parse_set(['foo, bar ,baz']))
 
-    def test_process_user_list__empty_input(self):
-        self.assertEqual(None, helpers.process_user_list([]))
+    def test_parse_set__normalize(self):
+        self.assertEqual({'hello'}, helpers.parse_set('HELLO', normalize=True))
 
-    def test_process_user_list__separate_items(self):
+    def test_parse_set__empty_input(self):
+        self.assertEqual(None, helpers.parse_set([]))
+        self.assertEqual(None, helpers.parse_set([',', '']))
+        self.assertEqual(None, helpers.parse_set(''))
+        self.assertEqual(None, helpers.parse_set(' '))
+
+    def test_parse_set__separate_items(self):
         self.assertEqual(set(['bar', 'foo']),
-                         helpers.process_user_list(['foo', 'bar']))
+                         helpers.parse_set(['foo', 'bar']))
 
 
 class PromptTest(unittest.TestCase):
