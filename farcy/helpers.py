@@ -288,7 +288,7 @@ class Config(object):
         self.debug = False
         self.exclude_paths = None
         self.limit_users = None
-        self.log_level = 'NOTSET'
+        self.log_level = 'ERROR'
         self.pr_issue_report_limit = 128
 
     def user_whitelisted(self, user):

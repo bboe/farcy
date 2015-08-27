@@ -75,13 +75,13 @@ class Farcy(object):
         self.config = config
         self.log = logging.getLogger(__name__)
         self.log.setLevel(config.log_level_int)
-        if config.log_level_int > logging.NOTSET:
-            handler = logging.StreamHandler()
-            handler.setFormatter(logging.Formatter(
-                '%(asctime)s %(levelname)8s %(message)s', '%Y/%m/%d %H:%M:%S'))
-            self.log.addHandler(handler)
-            self.log.info('Logging enabled at level {0}'.format(
-                config.log_level))
+
+        # Prepare logging
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)8s %(message)s', '%Y/%m/%d %H:%M:%S'))
+        self.log.addHandler(handler)
+        self.log.info('Logging enabled at level {0}'.format(config.log_level))
 
         if config.start_event:
             self.start_time = None
@@ -372,9 +372,5 @@ def main():
         sys.stderr.write('Farcy shutting down. Goodbye!\n')
         return 0
     except FarcyException as exc:
-        sys.stderr.write(exc.message + '\n')
+        sys.stderr.write('{0}\n'.format(exc))
         return 1
-
-
-if __name__ == '__main__':
-    sys.exit(main())

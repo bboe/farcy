@@ -3,7 +3,7 @@
 from __future__ import print_function
 from collections import namedtuple
 from datetime import datetime
-from farcy import Farcy, FarcyException, no_handler_debug_factory
+from farcy import Farcy, FarcyException, main, no_handler_debug_factory
 from farcy.helpers import Config, UTC
 from mock import MagicMock, call, patch
 from requests import ConnectionError
@@ -109,6 +109,75 @@ class FarcyTest(FarcyBaseTest):
     def test_get_issues__no_handlers(self):
         farcy = self._farcy_instance()
         self.assertEqual({}, farcy.get_issues(mockpfile(filename='')))
+
+
+class FarcyEventCallbackTest(FarcyBaseTest):
+    @patch('farcy.Farcy.handle_pr')
+    def test_PullRequestEvent__closed_existing(self, mock_handle_pr):
+        instance = self._farcy_instance()
+        instance.open_prs = {'DUMMY_BRANCH': None}
+
+        pull_request = Struct(head=Struct(ref='DUMMY_BRANCH'), number=1337)
+        event = Struct(payload={'action': 'closed',
+                                'pull_request': pull_request})
+
+        instance.PullRequestEvent(event)
+        self.assertEqual({}, instance.open_prs)
+        self.assertFalse(mock_handle_pr.called)
+
+    @patch('farcy.Farcy.handle_pr')
+    def test_PullRequestEvent__closed_non_existing(self, mock_handle_pr):
+        instance = self._farcy_instance()
+        instance.log = MagicMock()
+        self.assertEqual({}, instance.open_prs)
+
+        pull_request = Struct(head=Struct(ref='DUMMY_BRANCH'), number=1337)
+        event = Struct(payload={'action': 'closed',
+                                'pull_request': pull_request})
+
+        instance.PullRequestEvent(event)
+        self.assertEqual({}, instance.open_prs)
+        self.assertFalse(mock_handle_pr.called)
+        self.assertTrue(instance.log.warning.called)
+
+    @patch('farcy.Farcy.handle_pr')
+    def test_PullRequestEvent__opened(self, mock_handle_pr):
+        instance = self._farcy_instance()
+        self.assertEqual({}, instance.open_prs)
+
+        pull_request = Struct(head=Struct(ref='DUMMY_BRANCH'), number=1337)
+        event = Struct(payload={'action': 'opened',
+                                'pull_request': pull_request})
+
+        instance.PullRequestEvent(event)
+        self.assertEqual({'DUMMY_BRANCH': pull_request}, instance.open_prs)
+        self.assertTrue(mock_handle_pr.called)
+
+    @patch('farcy.Farcy.handle_pr')
+    def test_PullRequestEvent__reopened(self, mock_handle_pr):
+        instance = self._farcy_instance()
+        self.assertEqual({}, instance.open_prs)
+
+        pull_request = Struct(head=Struct(ref='DUMMY_BRANCH'), number=1337)
+        event = Struct(payload={'action': 'reopened',
+                                'pull_request': pull_request})
+
+        instance.PullRequestEvent(event)
+        self.assertEqual({'DUMMY_BRANCH': pull_request}, instance.open_prs)
+        self.assertFalse(mock_handle_pr.called)
+
+    @patch('farcy.Farcy.handle_pr')
+    def test_PushEvent__pr_does_not_exist(self, mock_handle_pr):
+        event = Struct(payload={'ref': 'refs/heads/DUMMY_BRANCH'})
+        self._farcy_instance().PushEvent(event)
+        self.assertFalse(mock_handle_pr.called)
+
+    @patch('farcy.Farcy.handle_pr')
+    def test_PushEvent__pr_exists(self, mock_handle_pr):
+        instance = self._farcy_instance()
+        instance.open_prs['DUMMY_BRANCH'] = 0xDEADBEEF
+        instance.PushEvent(Struct(payload={'ref': 'refs/heads/DUMMY_BRANCH'}))
+        mock_handle_pr.assert_called_with(0xDEADBEEF)
 
 
 class FarcyEventTest(FarcyBaseTest):
@@ -217,6 +286,59 @@ class FarcyEventTest(FarcyBaseTest):
         self.assertEqual(0xDEADBEEF, farcy.last_event_id)
 
         self.assertRaises(FarcyException, next, farcy.events())
+
+    @patch('farcy.Farcy.events')
+    @patch('farcy.Farcy.PushEvent')
+    def test_run(self, mock_callback, mock_events):
+        event1 = Struct(type='PushEvent', uniq=1)
+        event2 = Struct(type='PushEvent', uniq=2)
+        self.assertEqual(event1, event1)
+        self.assertNotEqual(event1, event2)
+
+        mock_events.return_value = [event1, event2]
+
+        self._farcy_instance().run()
+        mock_callback.assert_has_calls([call(event1), call(event2)])
+        mock_callback.assert_called_with(event2)
+
+
+class MainTest(unittest.TestCase):
+    @patch('farcy.Farcy')
+    @patch('farcy.Config')
+    def test_main__farcy_exception_in_run(self, mock_config, mock_farcy):
+        def side_effect():
+            raise FarcyException
+        mock_farcy.return_value.run.side_effect = side_effect
+        self.assertEqual(1, main())
+
+    @patch('farcy.Farcy')
+    @patch('farcy.Config')
+    def test_main__keyboard_interrupt_in_farcy(self, mock_config, mock_farcy):
+        def side_effect(_):
+            raise KeyboardInterrupt
+        mock_farcy.side_effect = side_effect
+        self.assertEqual(0, main())
+
+    @patch('farcy.Farcy')
+    @patch('farcy.Config')
+    def test_main__keyboard_interrupt_in_run(self, mock_config, mock_farcy):
+        def side_effect():
+            raise KeyboardInterrupt
+        mock_farcy.return_value.run.side_effect = side_effect
+        self.assertEqual(0, main())
+
+    @patch('farcy.Config')
+    def test_main__no_repo_specified(self, mock_config):
+        mock_config.return_value.repository = None
+        self.assertEqual(2, main())
+
+    @patch('farcy.Farcy')
+    @patch('farcy.Config')
+    def test_main__no_exception(self, mock_config, mock_farcy):
+        self.assertEqual(None, main())
+        self.assertTrue(mock_config.called)
+        self.assertTrue(mock_farcy.called)
+        self.assertTrue(mock_farcy.return_value.run.called)
 
 
 class NoHandlerDebugFactory(unittest.TestCase):
