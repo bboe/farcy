@@ -356,13 +356,12 @@ class Farcy(object):
 def main():
     """Provide an entry point into Farcy."""
     args = docopt(__doc__, version=VERSION_STR)
-
-    config = Config(args['REPOSITORY'])
-    config.override(start_event=args['--start'], debug=args['--debug'],
+    config = Config(args['REPOSITORY'], debug=args['--debug'],
                     exclude_paths=args['--exclude-path'],
                     limit_users=args['--limit-user'],
                     log_level=args['--logging'],
-                    pr_issue_report_limit=args['--comments-per-pr'])
+                    pr_issue_report_limit=args['--comments-per-pr'],
+                    start_event=args['--start'])
     if config.repository is None:
         sys.stderr.write('No repository specified\n')
         return 2

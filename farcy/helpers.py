@@ -213,16 +213,21 @@ class Config(object):
             self._session = get_session()
         return self._session
 
-    def __init__(self, repository):
+    def __init__(self, repository, **overrides):
         """Initialize a config with default values."""
         self._session = None
         self.repository = repository
         self.set_defaults()
         self.load_config_file()
+        self.override(**overrides)
 
     def __repr__(self):
         """String representation of the config."""
-        return '<Config {0}>'.format(self.__dict__)
+        keys = sorted(x for x in self.__dict__ if not x.startswith('_')
+                      and x != 'repository')
+        arg_fmt = ', '.join(['{0}={1!r}'.format(key, getattr(self, key))
+                             for key in keys])
+        return 'Config({0!r}, {1})'.format(self.repository, arg_fmt)
 
     def __setattr__(self, attr, value):
         """

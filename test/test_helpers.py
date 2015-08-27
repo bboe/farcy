@@ -31,12 +31,12 @@ class ConfigTest(unittest.TestCase):
     @patch('farcy.helpers.ConfigParser')
     @patch('os.path.isfile')
     def _config_instance(self, callback, mock_is_file, mock_config, repo=None,
-                         post_callback=None):
+                         post_callback=None, **overrides):
         mock_is_file.called_with(helpers.Config.PATH).return_value = True
 
         if callback:
             callback(mock_config.return_value)
-        config = helpers.Config(repo)
+        config = helpers.Config(repo, **overrides)
         if post_callback:
             post_callback(mock_config.return_value)
         self.assertTrue(mock_config.called)
@@ -90,6 +90,20 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual({'balloob', 'bboe'}, config.limit_users)
         self.assertEqual('DEBUG', config.log_level)
         self.assertEqual(100, config.pr_issue_report_limit)
+
+    def test_config__overrides(self):
+        config = self._config_instance(None, repo='a/b', start_event=1337,
+                                       limit_users='bboe')
+        self.assertEqual('a/b', config.repository)
+        self.assertEqual(1337, config.start_event)
+        self.assertEqual({'bboe'}, config.limit_users)
+
+    def test_config__repr(self):
+        config = self._config_instance(None, repo='a/b')
+        repr_str = ("Config('a/b', debug=False, exclude_paths=None, "
+                    "limit_users=None, log_level='NOTSET', "
+                    "pr_issue_report_limit=128, start_event=None)")
+        self.assertEqual(repr_str, repr(config))
 
     def test_default_repo_from_config(self):
         def callback(mock_config):
@@ -207,6 +221,24 @@ class CommentFunctionTest(unittest.TestCase):
         self.assertEqual(
             {1: ['Hello'], 5: ['Issue']},
             helpers.subtract_issues_by_line(issues, existing))
+
+
+class EnsureConfigDirTest(unittest.TestCase):
+    @patch('os.makedirs')
+    @patch('os.path.isdir')
+    def test_ensure_config_dir__create(self, mock_isdir, mock_makedirs):
+        mock_isdir.return_value = False
+        helpers.ensure_config_dir()
+        self.assertTrue(mock_isdir.called)
+        mock_makedirs.assert_called_with(helpers.CONFIG_DIR, mode=0o700)
+
+    @patch('os.makedirs')
+    @patch('os.path.isdir')
+    def test_ensure_config_dir__no_create(self, mock_isdir, mock_makedirs):
+        mock_isdir.return_value = True
+        helpers.ensure_config_dir()
+        self.assertTrue(mock_isdir.called)
+        self.assertFalse(mock_makedirs.called)
 
 
 class GetSessionTest(unittest.TestCase):
@@ -336,6 +368,20 @@ class PluralTest(unittest.TestCase):
 
     def test_plural__with_zero__list(self):
         self.assertEqual('0 units', helpers.plural([], 'unit'))
+
+
+class ParseBool(unittest.TestCase):
+    def test_parse_bool__non_string(self):
+        for value in [True, -1, 1, 1000, [''], 1.0]:
+            self.assertTrue(helpers.parse_bool(value))
+        for value in [None, False, 0, '', [], {}, 0.0]:
+            self.assertFalse(helpers.parse_bool(value))
+
+    def test_parse_bool__string(self):
+        for value in '1 on ON On oN t true y yes'.split():
+            self.assertTrue(helpers.parse_bool(value))
+        for value in '0 off OFF f false n no other'.split():
+            self.assertFalse(helpers.parse_bool(value))
 
 
 class ParseSet(unittest.TestCase):
