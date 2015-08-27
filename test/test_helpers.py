@@ -352,6 +352,20 @@ class PluralTest(unittest.TestCase):
         self.assertEqual('0 units', helpers.plural([], 'unit'))
 
 
+class ParseBool(unittest.TestCase):
+    def test_parse_bool__non_string(self):
+        for value in [True, -1, 1, 1000, [''], 1.0]:
+            self.assertTrue(helpers.parse_bool(value))
+        for value in [None, False, 0, '', [], {}, 0.0]:
+            self.assertFalse(helpers.parse_bool(value))
+
+    def test_parse_bool__string(self):
+        for value in '1 on ON On oN t true y yes'.split():
+            self.assertTrue(helpers.parse_bool(value))
+        for value in '0 off OFF f false n no other'.split():
+            self.assertFalse(helpers.parse_bool(value))
+
+
 class ParseSet(unittest.TestCase):
     def test_parse_set__comma_separated_as_string(self):
         self.assertEqual({'bar', 'bAz', 'foo'},
