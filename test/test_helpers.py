@@ -101,7 +101,7 @@ class ConfigTest(unittest.TestCase):
     def test_config__repr(self):
         config = self._config_instance(None, repo='a/b')
         repr_str = ("Config('a/b', debug=False, exclude_paths=None, "
-                    "limit_users=None, log_level='NOTSET', "
+                    "limit_users=None, log_level='ERROR', "
                     "pr_issue_report_limit=128, start_event=None)")
         self.assertEqual(repr_str, repr(config))
 
