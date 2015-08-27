@@ -374,7 +374,3 @@ def main():
     except FarcyException as exc:
         sys.stderr.write(exc.message + '\n')
         return 1
-
-
-if __name__ == '__main__':
-    sys.exit(main())

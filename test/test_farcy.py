@@ -3,7 +3,7 @@
 from __future__ import print_function
 from collections import namedtuple
 from datetime import datetime
-from farcy import Farcy, FarcyException, no_handler_debug_factory
+from farcy import Farcy, FarcyException, main, no_handler_debug_factory
 from farcy.helpers import Config, UTC
 from mock import MagicMock, call, patch
 from requests import ConnectionError
@@ -217,6 +217,45 @@ class FarcyEventTest(FarcyBaseTest):
         self.assertEqual(0xDEADBEEF, farcy.last_event_id)
 
         self.assertRaises(FarcyException, next, farcy.events())
+
+
+class MainTest(unittest.TestCase):
+    @patch('farcy.Farcy')
+    @patch('farcy.Config')
+    def test_main__farcy_exception_in_run(self, mock_config, mock_farcy):
+        def side_effect():
+            raise FarcyException
+        mock_farcy.return_value.run.side_effect = side_effect
+        self.assertEqual(1, main())
+
+    @patch('farcy.Farcy')
+    @patch('farcy.Config')
+    def test_main__keyboard_interrupt_in_farcy(self, mock_config, mock_farcy):
+        def side_effect(_):
+            raise KeyboardInterrupt
+        mock_farcy.side_effect = side_effect
+        self.assertEqual(0, main())
+
+    @patch('farcy.Farcy')
+    @patch('farcy.Config')
+    def test_main__keyboard_interrupt_in_run(self, mock_config, mock_farcy):
+        def side_effect():
+            raise KeyboardInterrupt
+        mock_farcy.return_value.run.side_effect = side_effect
+        self.assertEqual(0, main())
+
+    @patch('farcy.Config')
+    def test_main__no_repo_specified(self, mock_config):
+        mock_config.return_value.repository = None
+        self.assertEqual(2, main())
+
+    @patch('farcy.Farcy')
+    @patch('farcy.Config')
+    def test_main__no_exception(self, mock_config, mock_farcy):
+        self.assertEqual(None, main())
+        self.assertTrue(mock_config.called)
+        self.assertTrue(mock_farcy.called)
+        self.assertTrue(mock_farcy.return_value.run.called)
 
 
 class NoHandlerDebugFactory(unittest.TestCase):
