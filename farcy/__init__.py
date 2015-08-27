@@ -372,5 +372,5 @@ def main():
         sys.stderr.write('Farcy shutting down. Goodbye!\n')
         return 0
     except FarcyException as exc:
-        sys.stderr.write(exc.message + '\n')
+        sys.stderr.write('{0}\n'.format(exc))
         return 1
