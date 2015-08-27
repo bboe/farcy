@@ -218,6 +218,20 @@ class FarcyEventTest(FarcyBaseTest):
 
         self.assertRaises(FarcyException, next, farcy.events())
 
+    @patch('farcy.Farcy.events')
+    @patch('farcy.Farcy.PushEvent')
+    def test_run(self, mock_callback, mock_events):
+        event1 = Struct(type='PushEvent', uniq=1)
+        event2 = Struct(type='PushEvent', uniq=2)
+        self.assertEqual(event1, event1)
+        self.assertNotEqual(event1, event2)
+
+        mock_events.return_value = [event1, event2]
+
+        self._farcy_instance().run()
+        mock_callback.assert_has_calls([call(event1), call(event2)])
+        mock_callback.assert_called_with(event2)
+
 
 class MainTest(unittest.TestCase):
     @patch('farcy.Farcy')
