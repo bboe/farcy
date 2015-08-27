@@ -223,6 +223,24 @@ class CommentFunctionTest(unittest.TestCase):
             helpers.subtract_issues_by_line(issues, existing))
 
 
+class EnsureConfigDirTest(unittest.TestCase):
+    @patch('os.makedirs')
+    @patch('os.path.isdir')
+    def test_ensure_config_dir__create(self, mock_isdir, mock_makedirs):
+        mock_isdir.return_value = False
+        helpers.ensure_config_dir()
+        self.assertTrue(mock_isdir.called)
+        mock_makedirs.assert_called_with(helpers.CONFIG_DIR, mode=0o700)
+
+    @patch('os.makedirs')
+    @patch('os.path.isdir')
+    def test_ensure_config_dir__no_create(self, mock_isdir, mock_makedirs):
+        mock_isdir.return_value = True
+        helpers.ensure_config_dir()
+        self.assertTrue(mock_isdir.called)
+        self.assertFalse(mock_makedirs.called)
+
+
 class GetSessionTest(unittest.TestCase):
     @patch('farcy.helpers.open', create=True)
     @patch('github3.authorize')
