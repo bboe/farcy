@@ -113,6 +113,60 @@ class FarcyTest(FarcyBaseTest):
 
 class FarcyEventCallbackTest(FarcyBaseTest):
     @patch('farcy.Farcy.handle_pr')
+    def test_PullRequestEvent__closed_existing(self, mock_handle_pr):
+        instance = self._farcy_instance()
+        instance.open_prs = {'DUMMY_BRANCH': None}
+
+        pull_request = Struct(head=Struct(ref='DUMMY_BRANCH'), number=1337)
+        event = Struct(payload={'action': 'closed',
+                                'pull_request': pull_request})
+
+        instance.PullRequestEvent(event)
+        self.assertEqual({}, instance.open_prs)
+        self.assertFalse(mock_handle_pr.called)
+
+    @patch('farcy.Farcy.handle_pr')
+    def test_PullRequestEvent__closed_non_existing(self, mock_handle_pr):
+        instance = self._farcy_instance()
+        instance.log = MagicMock()
+        self.assertEqual({}, instance.open_prs)
+
+        pull_request = Struct(head=Struct(ref='DUMMY_BRANCH'), number=1337)
+        event = Struct(payload={'action': 'closed',
+                                'pull_request': pull_request})
+
+        instance.PullRequestEvent(event)
+        self.assertEqual({}, instance.open_prs)
+        self.assertFalse(mock_handle_pr.called)
+        self.assertTrue(instance.log.warning.called)
+
+    @patch('farcy.Farcy.handle_pr')
+    def test_PullRequestEvent__opened(self, mock_handle_pr):
+        instance = self._farcy_instance()
+        self.assertEqual({}, instance.open_prs)
+
+        pull_request = Struct(head=Struct(ref='DUMMY_BRANCH'), number=1337)
+        event = Struct(payload={'action': 'opened',
+                                'pull_request': pull_request})
+
+        instance.PullRequestEvent(event)
+        self.assertEqual({'DUMMY_BRANCH': pull_request}, instance.open_prs)
+        self.assertTrue(mock_handle_pr.called)
+
+    @patch('farcy.Farcy.handle_pr')
+    def test_PullRequestEvent__reopened(self, mock_handle_pr):
+        instance = self._farcy_instance()
+        self.assertEqual({}, instance.open_prs)
+
+        pull_request = Struct(head=Struct(ref='DUMMY_BRANCH'), number=1337)
+        event = Struct(payload={'action': 'reopened',
+                                'pull_request': pull_request})
+
+        instance.PullRequestEvent(event)
+        self.assertEqual({'DUMMY_BRANCH': pull_request}, instance.open_prs)
+        self.assertFalse(mock_handle_pr.called)
+
+    @patch('farcy.Farcy.handle_pr')
     def test_PushEvent__pr_does_not_exist(self, mock_handle_pr):
         event = Struct(payload={'ref': 'refs/heads/DUMMY_BRANCH'})
         self._farcy_instance().PushEvent(event)
@@ -122,8 +176,7 @@ class FarcyEventCallbackTest(FarcyBaseTest):
     def test_PushEvent__pr_exists(self, mock_handle_pr):
         instance = self._farcy_instance()
         instance.open_prs['DUMMY_BRANCH'] = 0xDEADBEEF
-        event = Struct(payload={'ref': 'refs/heads/DUMMY_BRANCH'})
-        instance.PushEvent(event)
+        instance.PushEvent(Struct(payload={'ref': 'refs/heads/DUMMY_BRANCH'}))
         mock_handle_pr.assert_called_with(0xDEADBEEF)
 
 
