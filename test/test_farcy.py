@@ -111,6 +111,22 @@ class FarcyTest(FarcyBaseTest):
         self.assertEqual({}, farcy.get_issues(mockpfile(filename='')))
 
 
+class FarcyEventCallbackTest(FarcyBaseTest):
+    @patch('farcy.Farcy.handle_pr')
+    def test_PushEvent__pr_does_not_exist(self, mock_handle_pr):
+        event = Struct(payload={'ref': 'refs/heads/DUMMY_BRANCH'})
+        self._farcy_instance().PushEvent(event)
+        self.assertFalse(mock_handle_pr.called)
+
+    @patch('farcy.Farcy.handle_pr')
+    def test_PushEvent__pr_exists(self, mock_handle_pr):
+        instance = self._farcy_instance()
+        instance.open_prs['DUMMY_BRANCH'] = 0xDEADBEEF
+        event = Struct(payload={'ref': 'refs/heads/DUMMY_BRANCH'})
+        instance.PushEvent(event)
+        mock_handle_pr.assert_called_with(0xDEADBEEF)
+
+
 class FarcyEventTest(FarcyBaseTest):
     def test_event_loop__ignore_events_before_start(self):
         event = Struct(actor=Struct(login=None), type='PushEvent',
