@@ -43,7 +43,7 @@ import os
 import sys
 import time
 from .const import (__version__, APPROVAL_PHRASES, FARCY_COMMENT_START,
-                    STATUS_FORMAT, VERSION_STR)
+                    STATUS_CONTEXT, VERSION_STR)
 from .exceptions import FarcyException, HandlerException
 from .helpers import (
     Config, UTC, added_lines, filter_comments_from_farcy, issues_by_line,
@@ -228,21 +228,23 @@ class Farcy(object):
 
     def handle_pr(self, pr):
         """Provide code review on pull request."""
+        if not self.config.user_whitelisted(pr.user.login):
+            self.log.debug('Skipping PR#{0}: {1} is not whitelisted'
+                           .format(pr.number, pr.user.login))
+            return
+
         pr.refresh()  # Get most recent state
         if pr.state != 'open':  # Ignore closed PRs
             self.log.debug('Skipping PR#{0}: invalid state ({1})'
                            .format(pr.number, pr.state))
             return
-        if not self.config.user_whitelisted(pr.user.login):
-            self.log.debug('Skipping PR#{0}: {1} is not whitelisted'
-                           .format(pr.number, pr.user.login))
-            return
+
         self.log.info('Handling PR#{0} by {1}'
                       .format(pr.number, pr.user.login))
         sha = list(pr.commits())[-1].sha
         if not self.config.debug:
             self.repo.create_status(
-                sha, 'pending', context=VERSION_STR,
+                sha, 'pending', context=STATUS_CONTEXT,
                 description='started investigation')
         exception = False
         existing_comments = list(filter_comments_from_farcy(
@@ -313,8 +315,8 @@ class Farcy(object):
         if not exception:
             if not self.config.debug:
                 self.repo.create_status(
-                    sha, status_state, context=VERSION_STR,
-                    description=STATUS_FORMAT.format(status_msg))
+                    sha, status_state, context=STATUS_CONTEXT,
+                    description=status_msg)
             self.log.info('PR#{0} STATUS: "{1}"'.format(pr.number, status_msg))
 
     no_handler_debug = no_handler_debug_factory()

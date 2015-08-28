@@ -34,4 +34,4 @@ You are awesome
 You do not miss a thing
 """.split('\n') if x.strip()]
 
-STATUS_FORMAT = '{0} {{0}}'.format(VERSION_STR)
+STATUS_CONTEXT = 'farcy'
