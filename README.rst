@@ -63,13 +63,22 @@ required. Install via:
 
 Docker
 ------
-Farcy can be run from a Docker container. Run it in interactive mode from the desktop to setup the GitHub credentials. This has to be done once and can be shared between containers.
+Farcy is available as a Docker image with all the handlers installed and ready to be used.
+
+To get started, create a config folder with a configuration file `farcy.conf` that points at your repository.
+
+.. code-block::
+
+    [DEFAULT]
+    repository: appfolio/farcy
+
+After that, run the Docker container in interactive mode to setup your GitHub credentials. This will create the file `github_auth` in your configuration folder. This file can be reused if you plan on creating multiple containers.
 
 .. code-block:: bash
 
-    $ docker run -t -i --name="farcy" -v /path/to/local/farcy/config:/config appfolio/farcy
+    $ docker run -t -i -v /path/to/local/farcy/config:/config appfolio/farcy
 
-After the initials are setup, you can run it in the background.
+After the initial setup, Farcy is ready to go and you can run the Docker container in daemon mode.
 
 .. code-block:: bash
 
