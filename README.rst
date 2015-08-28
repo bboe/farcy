@@ -61,6 +61,20 @@ required. Install via:
     $ npm install -g jsxhint
 
 
+Docker
+------
+Farcy can be run from a Docker container. Run it in interactive mode from the desktop to setup the GitHub credentials. This has to be done once and can be shared between containers.
+
+.. code-block:: bash
+
+    $ docker run -t -i --name="farcy" -v /path/to/local/farcy/config:/config appfolio/farcy
+
+After the initials are setup, you can run it in the background.
+
+.. code-block:: bash
+
+    $ docker run -d --name="farcy" -v /path/to/local/farcy/config:/config appfolio/farcy
+
 Copyright and license
 ---------------------
 
