@@ -37,6 +37,36 @@ repository name, and an optional log level:
 
     $ farcy --level INFO appfolio farcy
 
+Configuration
+~~~~~~~~~~~~~
+
+Farcy allows to be configured using configuration files. Existence of a configuration
+file is optional and values can be overwritten by commandline arguments. On boot,
+Farcy will look for a configuration file at ``~/.config/farcy/farcy.conf``.
+
+The configuration file can contain a ``DEFAULT`` section and a section per repository
+with specific settings. The ``DEFAULT`` section can take an optional ``repsitory`` key.
+
+.. code-block::
+
+    [DEFAULT]
+    repository:appfolio/farcy
+    log_level: INFO
+    
+    [appfolio/farcy]
+    debug: true
+    exclude_paths: npm_modules, vendor, db 
+    limit_users: balloob, bboe
+    pr_issue_report_limit: 32
+    
+    [appfolio/gemsurance]
+    pr_issue_report_limit: 10
+    log_level: WARNING
+
+Configuration files for the various linters can be placed in
+``~/.config/farcy/handler_NAME.conf``. Replace ``NAME`` with the name of the handler.
+
+
 Optional external pacakges needed for various file types
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
