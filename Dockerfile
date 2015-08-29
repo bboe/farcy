@@ -17,7 +17,7 @@ RUN mkdir /root/.config && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # ESLint
-RUN npm install eslint babel-eslint eslint-plugin-react
+RUN npm install -g eslint babel-eslint eslint-plugin-react
 
 # Rubocop
 RUN gem install rubocop
