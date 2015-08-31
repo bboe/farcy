@@ -55,7 +55,7 @@ with specific settings. The ``DEFAULT`` section can take an optional ``repsitory
     
     [appfolio/farcy]
     debug: true
-    exclude_paths: npm_modules, vendor, db 
+    exclude_paths: npm_modules, vendor, db
     limit_users: balloob, bboe
     pr_issue_report_limit: 32
     
