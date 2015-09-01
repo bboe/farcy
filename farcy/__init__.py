@@ -28,7 +28,7 @@ Options:
 """
 
 from __future__ import print_function
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, namedtuple
 from datetime import datetime
 from docopt import docopt
 from fnmatch import fnmatch
@@ -60,6 +60,8 @@ def no_handler_debug_factory(duration=3600):
             obj.log.debug('No handlers for extension {0}'.format(ext))
         last_logged[ext] = now
     return log
+
+_HandleStruct = namedtuple('_HandleStruct', ['existing', 'count', 'stats'])
 
 
 class Farcy(object):
@@ -155,6 +157,75 @@ class Farcy(object):
                 events.insert(0, event)
         return newest_id
 
+    def _fail_closed(self, pr):
+        pr.refresh()
+        if pr.state == 'open':
+            return None
+        return ('Skipping PR#{0}: invalid state ({1})'
+                .format(pr.number, pr.state))
+
+    def _fail_whitelist(self, pr):
+        if self.config.user_whitelisted(pr.user.login):
+            return None
+        return ('Skipping PR#{0}: {1} is not whitelisted'
+                .format(pr.number, pr.user.login))
+
+    def _get_state(self, issues):
+        if issues > 0:
+            return 'error', 'found {0}'.format(plural(issues, 'issue'))
+        return 'success', 'approves! {0}!'.format(choice(APPROVAL_PHRASES))
+
+    def _handle_pr_file(self, pfile, pr, sha, struct):
+        """Return whether or not an exception occured."""
+        added = self._compute_pfile_stats(pfile, struct.stats)
+        if added is None:
+            return False
+
+        try:
+            file_issues = self.get_issues(pfile)
+        except Exception:
+            self.log.exception('Failure with get_issues for {0}'
+                               .format(pfile.filename))
+            return True
+
+        # Maps patch line number to violation
+        issues = {added[lineno]: value for lineno, value in
+                  split_dict(file_issues, added.keys())[0].items()}
+
+        file_issues_to_comment = subtract_issues_by_line(
+            issues, issues_by_line(struct.existing, pfile.filename))
+
+        file_issue_count = sum(len(x) for x in issues.values())
+        struct.stats['issues'] += file_issue_count
+
+        unreported_issues = file_issue_count - sum(
+            len(x) for x in file_issues_to_comment.values())
+        if unreported_issues > 0:
+            struct.stats['duplicate_issues'] += unreported_issues
+
+        for lineno, violations in sorted(file_issues_to_comment.items()):
+            if struct.count >= self.config.pr_issue_report_limit:
+                struct.stats['skipped_issues'] += 1
+                continue
+
+            if self.config.debug:
+                # Only log each issue if we're in debugging mode because we
+                # don't want the logs in non-debugging mode to be noisy.
+                self.log.info('PR#{0} ({1}:{2}): {3}"'.format(
+                    pr.number, pfile.filename, lineno, violations))
+            else:
+                msg = '\n'.join(
+                    [FARCY_COMMENT_START] + ['* {}'.format(violation)
+                                             for violation in violations])
+                (pr.create_review_comment(msg, sha, pfile.filename, lineno)
+                 .html_url['href'])
+
+            # `struct.count` is misleading when in debug mode.  What
+            # it really means is the number of comments that would be on
+            # on the pr (existing + new) when not in debug mode.
+            struct.count += 1
+        return False
+
     def _load_handlers(self):
         from . import handlers
         self._ext_to_handler = defaultdict(list)
@@ -172,6 +243,11 @@ class Farcy(object):
             self.log.info('Active handlers: %s', ', '.join(active))
         else:
             self.log.warning('No active handlers')
+
+    def _set_status(self, sha, status, description):
+        if not self.config.debug:
+            self.repo.create_status(sha, status, context=STATUS_CONTEXT,
+                                    description=description)
 
     def events(self):
         """Yield repository events in order."""
@@ -228,96 +304,35 @@ class Farcy(object):
 
     def handle_pr(self, pr):
         """Provide code review on pull request."""
-        if not self.config.user_whitelisted(pr.user.login):
-            self.log.debug('Skipping PR#{0}: {1} is not whitelisted'
-                           .format(pr.number, pr.user.login))
+        failure = self.fail_whitelist(pr) or self.fail_closed(pr)
+        if failure is not None:
+            self.log.debug(failure)
             return
 
-        pr.refresh()  # Get most recent state
-        if pr.state != 'open':  # Ignore closed PRs
-            self.log.debug('Skipping PR#{0}: invalid state ({1})'
-                           .format(pr.number, pr.state))
-            return
-
+        sha = list(pr.commits())[-1].sha
+        self._set_status(sha, 'pending', 'started investigation')
         self.log.info('Handling PR#{0} by {1}'
                       .format(pr.number, pr.user.login))
-        sha = list(pr.commits())[-1].sha
-        if not self.config.debug:
-            self.repo.create_status(
-                sha, 'pending', context=STATUS_CONTEXT,
-                description='started investigation')
+
         exception = False
-        existing_comments = list(filter_comments_from_farcy(
-            pr.review_comments()))
-        stats = Counter()
-        comments_on_github = len(existing_comments)
+        handle_struct = _HandleStruct(existing=list(
+            filter_comments_from_farcy(pr.review_comments())), count=None,
+            stats=Counter())
+        handle_struct.count = len(handle_struct.existing)
         for pfile in pr.files():
-            added = self._compute_pfile_stats(pfile, stats)
-            if added is None:
-                continue
-
-            try:
-                file_issues = self.get_issues(pfile)
-            except Exception:
-                self.log.exception('Failure with get_issues for {0}'
-                                   .format(pfile.filename))
-                exception = True
-                continue
-
-            # Maps patch line number to violation
-            issues = {added[lineno]: value for lineno, value in
-                      split_dict(file_issues, added.keys())[0].items()}
-
-            file_issues_to_comment = subtract_issues_by_line(
-                issues, issues_by_line(existing_comments, pfile.filename))
-
-            file_issue_count = sum(len(x) for x in issues.values())
-            stats['issues'] += file_issue_count
-
-            unreported_issues = file_issue_count - sum(
-                len(x) for x in file_issues_to_comment.values())
-            if unreported_issues > 0:
-                stats['duplicate_issues'] += unreported_issues
-
-            for lineno, violations in sorted(file_issues_to_comment.items()):
-                if comments_on_github >= self.config.pr_issue_report_limit:
-                    stats['skipped_issues'] += 1
-                    continue
-
-                if self.config.debug:
-                    # Only log each issue if we're in debugging mode because we
-                    # don't want the logs in non-debugging mode to be noisy.
-                    self.log.info('PR#{0} ({1}:{2}): {3}"'.format(
-                        pr.number, pfile.filename, lineno, violations))
-                else:
-                    msg = '\n'.join(
-                        [FARCY_COMMENT_START] + ['* {}'.format(violation)
-                                                 for violation in violations])
-                    (pr.create_review_comment(msg, sha, pfile.filename, lineno)
-                     .html_url['href'])
-                # `comments_on_github` is misleading when in debug mode.  What
-                # it really means is the number of comments that would be on
-                # github when not in debug mode.
-                comments_on_github += 1
+            exception = self._handle_pr_file(
+                pfile, pr, sha, handle_struct) or exception
 
         # Log the statistics for the PR
-        for key, count in sorted(stats.items()):
+        for key, count in sorted(handle_struct.stats.items()):
             if count > 0:
                 self.log.debug('PR#{0} {1:>16}: {2}'
                                .format(pr.number, key, count))
 
-        if stats['issues'] > 0:
-            status_msg = 'found {0}'.format(plural(stats['issues'], 'issue'))
-            status_state = 'error'
-        else:
-            status_msg = 'approves! {0}!'.format(choice(APPROVAL_PHRASES))
-            status_state = 'success'
         if not exception:
-            if not self.config.debug:
-                self.repo.create_status(
-                    sha, status_state, context=STATUS_CONTEXT,
-                    description=status_msg)
-            self.log.info('PR#{0} STATUS: "{1}"'.format(pr.number, status_msg))
+            state, message = self._get_state(handle_struct.stats['issue'])
+            self._set_status(sha, state, message)
+            self.log.info('PR#{0} STATUS: "{1}"'.format(pr.number, message))
 
     no_handler_debug = no_handler_debug_factory()
 
