@@ -301,6 +301,24 @@ class FarcyEventTest(FarcyBaseTest):
         mock_callback.assert_has_calls([call(event1), call(event2)])
         mock_callback.assert_called_with(event2)
 
+    @patch('farcy.Farcy.handle_pr')
+    def test_run__single_pull_request(self, mock_handle_pr):
+        farcy = self._farcy_instance()
+        farcy.repo.pull_request.side_effect = lambda x: x
+        farcy.config.pull_requests = '418'
+        farcy.run()
+        mock_handle_pr.assert_has_calls(call(418, force=True))
+
+    @patch('farcy.Farcy.handle_pr')
+    def test_run__multiple_pull_requests(self, mock_handle_pr):
+        farcy = self._farcy_instance()
+        farcy.repo.pull_request.side_effect = lambda x: x
+        farcy.config.pull_requests = '360,180,720'
+        farcy.run()
+        mock_handle_pr.assert_has_calls([call(180, force=True),
+                                         call(360, force=True),
+                                         call(720, force=True)])
+
 
 class MainTest(unittest.TestCase):
     @patch('farcy.Farcy')

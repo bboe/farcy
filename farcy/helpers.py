@@ -197,7 +197,7 @@ class Config(object):
     """Holds configuration for Farcy."""
 
     ATTRIBUTES = {'debug', 'exclude_paths', 'limit_users', 'log_level',
-                  'pr_issue_report_limit', 'start_event'}
+                  'pr_issue_report_limit', 'pull_requests', 'start_event'}
     LOG_LEVELS = {'CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'NOTSET'}
     PATH = os.path.join(CONFIG_DIR, 'farcy.conf')
 
@@ -239,7 +239,7 @@ class Config(object):
         if attr == 'debug' and parse_bool(value):
             # Force log level when in debug mode
             setattr(self, 'log_level', 'DEBUG')
-        elif attr == 'exclude_paths':
+        elif attr in ('exclude_paths', 'pull_requests'):
             if value is not None:
                 value = parse_set(value)
         elif attr == 'limit_users':
@@ -284,12 +284,13 @@ class Config(object):
 
     def set_defaults(self):
         """Set the default config values."""
-        self.start_event = None
         self.debug = False
         self.exclude_paths = None
         self.limit_users = None
         self.log_level = 'ERROR'
         self.pr_issue_report_limit = 128
+        self.pull_requests = None
+        self.start_event = None
 
     def user_whitelisted(self, user):
         """Return if user is whitelisted."""

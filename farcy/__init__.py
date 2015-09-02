@@ -7,6 +7,7 @@ Usage: farcy.py [-D | --logging=LEVEL] [--comments-per-pr=LIMIT]
 Options:
 
   -s ID, --start=ID  The event id to start handling events from.
+  -p ID, --pr=ID   Process only the provided pull request(s).
   -D, --debug        Enable debugging mode. Enables all logging output
                      and prevents the posting of comments.
   --logging=LEVEL    Specify the log level* to output.
@@ -28,7 +29,7 @@ Options:
 """
 
 from __future__ import print_function
-from collections import Counter, defaultdict, namedtuple
+from collections import Counter, defaultdict
 from datetime import datetime
 from docopt import docopt
 from fnmatch import fnmatch
@@ -60,8 +61,6 @@ def no_handler_debug_factory(duration=3600):
             obj.log.debug('No handlers for extension {0}'.format(ext))
         last_logged[ext] = now
     return log
-
-_HandleStruct = namedtuple('_HandleStruct', ['existing', 'count', 'stats'])
 
 
 class Farcy(object):
@@ -175,9 +174,9 @@ class Farcy(object):
             return 'error', 'found {0}'.format(plural(issues, 'issue'))
         return 'success', 'approves! {0}!'.format(choice(APPROVAL_PHRASES))
 
-    def _handle_pr_file(self, pfile, pr, sha, struct):
+    def _handle_pr_file(self, pfile, pr, sha, data):
         """Return whether or not an exception occured."""
-        added = self._compute_pfile_stats(pfile, struct.stats)
+        added = self._compute_pfile_stats(pfile, data['stats'])
         if added is None:
             return False
 
@@ -193,19 +192,19 @@ class Farcy(object):
                   split_dict(file_issues, added.keys())[0].items()}
 
         file_issues_to_comment = subtract_issues_by_line(
-            issues, issues_by_line(struct.existing, pfile.filename))
+            issues, issues_by_line(data['existing'], pfile.filename))
 
         file_issue_count = sum(len(x) for x in issues.values())
-        struct.stats['issues'] += file_issue_count
+        data['stats']['issues'] += file_issue_count
 
         unreported_issues = file_issue_count - sum(
             len(x) for x in file_issues_to_comment.values())
         if unreported_issues > 0:
-            struct.stats['duplicate_issues'] += unreported_issues
+            data['stats']['duplicate_issues'] += unreported_issues
 
         for lineno, violations in sorted(file_issues_to_comment.items()):
-            if struct.count >= self.config.pr_issue_report_limit:
-                struct.stats['skipped_issues'] += 1
+            if data['count'] >= self.config.pr_issue_report_limit:
+                data['stats']['skipped_issues'] += 1
                 continue
 
             if self.config.debug:
@@ -220,10 +219,10 @@ class Farcy(object):
                 (pr.create_review_comment(msg, sha, pfile.filename, lineno)
                  .html_url['href'])
 
-            # `struct.count` is misleading when in debug mode.  What
+            # `data['count']` is misleading when in debug mode.  What
             # it really means is the number of comments that would be on
             # on the pr (existing + new) when not in debug mode.
-            struct.count += 1
+            data['count'] += 1
         return False
 
     def _load_handlers(self):
@@ -302,10 +301,11 @@ class Farcy(object):
 
         return retval
 
-    def handle_pr(self, pr):
+    def handle_pr(self, pr, force=False):
         """Provide code review on pull request."""
-        failure = self.fail_whitelist(pr) or self.fail_closed(pr)
-        if failure is not None:
+        failure = not force and (self._fail_whitelist(pr)
+                                 or self._fail_closed(pr))
+        if failure:
             self.log.debug(failure)
             return
 
@@ -315,22 +315,21 @@ class Farcy(object):
                       .format(pr.number, pr.user.login))
 
         exception = False
-        handle_struct = _HandleStruct(existing=list(
-            filter_comments_from_farcy(pr.review_comments())), count=None,
-            stats=Counter())
-        handle_struct.count = len(handle_struct.existing)
+        existing = list(filter_comments_from_farcy(pr.review_comments()))
+        handle_data = {'count': len(existing), 'existing': existing,
+                       'stats': Counter()}
         for pfile in pr.files():
             exception = self._handle_pr_file(
-                pfile, pr, sha, handle_struct) or exception
+                pfile, pr, sha, handle_data) or exception
 
         # Log the statistics for the PR
-        for key, count in sorted(handle_struct.stats.items()):
+        for key, count in sorted(handle_data['stats'].items()):
             if count > 0:
                 self.log.debug('PR#{0} {1:>16}: {2}'
                                .format(pr.number, key, count))
 
         if not exception:
-            state, message = self._get_state(handle_struct.stats['issue'])
+            state, message = self._get_state(handle_data['stats']['issue'])
             self._set_status(sha, state, message)
             self.log.info('PR#{0} STATUS: "{1}"'.format(pr.number, message))
 
@@ -365,6 +364,11 @@ class Farcy(object):
 
     def run(self):
         """Run the bot until ctrl+c is received."""
+        if self.config.pull_requests is not None:
+            for number in sorted(int(x) for x in self.config.pull_requests):
+                self.handle_pr(self.repo.pull_request(number), force=True)
+            return
+
         self.log.info('Monitoring {0}'.format(self.repo.html_url))
         for event in self.events():
             getattr(self, event.type)(event)
@@ -378,6 +382,7 @@ def main():
                     limit_users=args['--limit-user'],
                     log_level=args['--logging'],
                     pr_issue_report_limit=args['--comments-per-pr'],
+                    pull_requests=args['--pr'],
                     start_event=args['--start'])
     if config.repository is None:
         sys.stderr.write('No repository specified\n')
