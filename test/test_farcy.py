@@ -10,6 +10,9 @@ from requests import ConnectionError
 import logging
 import unittest
 
+# Don't allow the system config file to load
+Config.PATH = '/dev/null'
+
 PFILE_ATTRS = ['contents', 'filename', 'patch', 'status']
 
 MockInfo = namedtuple('Info', ['decoded'])
@@ -92,9 +95,8 @@ class FarcyTest(FarcyBaseTest):
         self.assertEqual({'deleted_files': 11}, stats)
 
     def test_compute_pfile_stats__unexpected_status(self):
-        logger = logging.getLogger('farcy')
         stats = {}
-        with patch.object(logger, 'critical') as mock_critical:
+        with patch.object(self.logger, 'critical') as mock_critical:
             self.assertEqual(None, self._farcy_instance()._compute_pfile_stats(
                 mockpfile(patch='', status='foobar'), stats))
             self.assertTrue(mock_critical.called)
@@ -109,6 +111,24 @@ class FarcyTest(FarcyBaseTest):
     def test_get_issues__no_handlers(self):
         farcy = self._farcy_instance()
         self.assertEqual({}, farcy.get_issues(mockpfile(filename='')))
+
+    def test_handle_pr__pr_closed(self):
+        pr = MagicMock(number=180, state='closed')
+        farcy = self._farcy_instance()
+        with patch.object(self.logger, 'debug') as mock_debug:
+            farcy.handle_pr(pr)
+            mock_debug.assert_called_with(
+                'Skipping PR#180: invalid state (closed)')
+        pr.refresh.assert_called_with()
+
+    def test_handle_pr__user_not_whitelisted(self):
+        pr = Struct(number=180, user=Struct(login='Dummy'))
+        farcy = self._farcy_instance()
+        farcy.config.limit_users = ['bboe']
+        with patch.object(self.logger, 'debug') as mock_debug:
+            farcy.handle_pr(pr)
+            mock_debug.assert_called_with(
+                'Skipping PR#180: Dummy is not whitelisted')
 
 
 class FarcyEventCallbackTest(FarcyBaseTest):
