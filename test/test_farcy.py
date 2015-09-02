@@ -49,7 +49,9 @@ class FarcyBaseTest(unittest.TestCase):
     @patch('farcy.helpers.get_session')
     @patch('farcy.UpdateChecker')
     def _farcy_instance(self, mock_update_checker, mock_get_session,
-                        config=Config(None)):
+                        config=None):
+        if config is None:
+            config = Config(None)
         if config.repository is None:
             config.repository = 'dummy/dummy'
         farcy = Farcy(config)
