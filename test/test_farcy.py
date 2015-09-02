@@ -35,6 +35,10 @@ def mockpfile(**kwargs):
 
 
 class FarcyBaseTest(unittest.TestCase):
+    def setUp(self):
+        logging.disable(logging.CRITICAL)
+        self.logger = logging.getLogger('farcy')
+
     @patch('farcy.helpers.get_session')
     @patch('farcy.UpdateChecker')
     def _farcy_instance(self, mock_update_checker, mock_get_session,
