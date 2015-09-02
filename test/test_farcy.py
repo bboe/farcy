@@ -7,11 +7,12 @@ from farcy import Farcy, FarcyException, main, no_handler_debug_factory
 from farcy.helpers import Config, UTC
 from mock import MagicMock, call, patch
 from requests import ConnectionError
+import farcy as farcy_module
 import logging
 import unittest
 
-# Don't allow the system config file to load
-Config.PATH = '/dev/null'
+Config.PATH = '/dev/null'  # Don't allow the system config file to load.
+farcy_module.APPROVAL_PHRASES = ['Dummy Approval']  # Provide only one option.
 
 PFILE_ATTRS = ['contents', 'filename', 'patch', 'status']
 
@@ -21,7 +22,8 @@ MockPFile = namedtuple('PFile', PFILE_ATTRS)
 
 def assert_calls(method, *calls):
     method.assert_has_calls(list(calls))
-    assert method.call_count == len(calls)
+    assert method.call_count == len(calls), "{0} != {1}".format(
+        list(calls), method.mock_calls)
 
 
 class Struct(object):
@@ -120,6 +122,21 @@ class FarcyTest(FarcyBaseTest):
     def test_get_issues__no_handlers(self):
         farcy = self._farcy_instance()
         self.assertEqual({}, farcy.get_issues(mockpfile(filename='')))
+
+    def test_handle_pr__success(self):
+        pr = MagicMock(number=180, state='open', user=Struct(login='Dummy'))
+        pr.commits.return_value = [Struct(sha='dummy')]
+        farcy = self._farcy_instance()
+        with patch.object(self.logger, 'info') as mock_info:
+            farcy.handle_pr(pr)
+            assert_calls(mock_info,
+                         call('Handling PR#180 by Dummy'),
+                         call('PR#180 STATUS: approves! Dummy Approval!'))
+        assert_calls(farcy.repo.create_status,
+                     call('dummy', 'pending', context='farcy',
+                          description='started investigation'),
+                     call('dummy', 'success', context='farcy',
+                          description='approves! Dummy Approval!'))
 
     def test_handle_pr__pr_closed(self):
         pr = MagicMock(number=180, state='closed')

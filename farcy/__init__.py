@@ -331,7 +331,7 @@ class Farcy(object):
         if not exception:
             state, message = self._get_state(handle_data['stats']['issue'])
             self._set_status(sha, state, message)
-            self.log.info('PR#{0} STATUS: "{1}"'.format(pr.number, message))
+            self.log.info('PR#{0} STATUS: {1}'.format(pr.number, message))
 
     no_handler_debug = no_handler_debug_factory()
 
