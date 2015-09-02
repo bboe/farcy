@@ -102,7 +102,7 @@ class Farcy(object):
                                  .format(self.config.repository))
         # Keep track of open pull requests
         self.open_prs = {}
-        for pr in self.repo.pull_requests(state='all'):
+        for pr in self.repo.pull_requests(state='open'):
             if pr.state == 'open':
                 self.open_prs[pr.head.ref] = pr
 
