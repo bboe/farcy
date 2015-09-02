@@ -19,6 +19,11 @@ MockInfo = namedtuple('Info', ['decoded'])
 MockPFile = namedtuple('PFile', PFILE_ATTRS)
 
 
+def assert_calls(method, *calls):
+    method.assert_has_calls(list(calls))
+    assert method.call_count == len(calls)
+
+
 class Struct(object):
     def __init__(self, iterable=None, **attrs):
         self.__dict__.update(attrs)
@@ -322,7 +327,7 @@ class FarcyEventTest(FarcyBaseTest):
         mock_events.return_value = [event1, event2]
 
         self._farcy_instance().run()
-        mock_callback.assert_has_calls([call(event1), call(event2)])
+        assert_calls(mock_callback, call(event1), call(event2))
         mock_callback.assert_called_with(event2)
 
     @patch('farcy.Farcy.handle_pr')
@@ -331,7 +336,7 @@ class FarcyEventTest(FarcyBaseTest):
         farcy.repo.pull_request.side_effect = lambda x: x
         farcy.config.pull_requests = '418'
         farcy.run()
-        mock_handle_pr.assert_has_calls(call(418, force=True))
+        assert_calls(mock_handle_pr, call(418, force=True))
 
     @patch('farcy.Farcy.handle_pr')
     def test_run__multiple_pull_requests(self, mock_handle_pr):
@@ -339,9 +344,8 @@ class FarcyEventTest(FarcyBaseTest):
         farcy.repo.pull_request.side_effect = lambda x: x
         farcy.config.pull_requests = '360,180,720'
         farcy.run()
-        mock_handle_pr.assert_has_calls([call(180, force=True),
-                                         call(360, force=True),
-                                         call(720, force=True)])
+        assert_calls(mock_handle_pr, call(180, force=True),
+                     call(360, force=True), call(720, force=True))
 
 
 class MainTest(unittest.TestCase):
@@ -399,12 +403,12 @@ class NoHandlerDebugFactory(unittest.TestCase):
         func(self.farcy, '.js')
         func(self.farcy, '.js')
         calls = [call('No handlers for extension .js')] * 2
-        self.farcy.log.debug.assert_has_calls(calls)
+        assert_calls(self.farcy.log.debug, *calls)
 
     def test_no_handler_factory__multiple_calls(self):
         func = no_handler_debug_factory(1)
         func(self.farcy, '.js')
         func(self.farcy, '.css')
-        calls = [call('No handlers for extension .js'),
-                 call('No handlers for extension .css')]
-        self.farcy.log.debug.assert_has_calls(calls)
+        assert_calls(self.farcy.log.debug,
+                     call('No handlers for extension .js'),
+                     call('No handlers for extension .css'))
