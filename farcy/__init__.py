@@ -102,8 +102,7 @@ class Farcy(object):
         # Keep track of open pull requests
         self.open_prs = {}
         for pr in self.repo.pull_requests(state='open'):
-            if pr.state == 'open':
-                self.open_prs[pr.head.ref] = pr
+            self.open_prs[pr.head.ref] = pr
 
         # Check for farcy package updates
         if not self._update_checked:
