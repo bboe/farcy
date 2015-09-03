@@ -26,6 +26,14 @@ def assert_calls(method, *calls):
         list(calls), method.mock_calls)
 
 
+def assert_status(farcy):
+    assert_calls(farcy.repo.create_status,
+                 call('dummy', 'pending', context='farcy',
+                      description='started investigation'),
+                 call('dummy', 'success', context='farcy',
+                      description='approves! Dummy Approval!'))
+
+
 class Struct(object):
     def __init__(self, iterable=None, **attrs):
         self.__dict__.update(attrs)
@@ -125,20 +133,31 @@ class FarcyTest(FarcyBaseTest):
         farcy = self._farcy_instance()
         self.assertEqual({}, farcy.get_issues(mockpfile(filename='')))
 
-    def test_handle_pr__success(self):
+    @patch('farcy.Farcy.get_issues')
+    @patch('farcy.added_lines')
+    def test_handle_pr__exception_from_get_issues(self, mock_added_lines,
+                                                  mock_get_issues):
+        def side_effect():
+            raise Exception()
+
+        mock_added_lines.return_value = MagicMock()
+        mock_get_issues.side_effect = side_effect
+
         pr = MagicMock(number=180, state='open', user=Struct(login='Dummy'))
         pr.commits.return_value = [Struct(sha='dummy')]
+        pfile = mockpfile(patch='', status='added')
+        pr.files.return_value = [pfile]
+
         farcy = self._farcy_instance()
         with patch.object(self.logger, 'info') as mock_info:
             farcy.handle_pr(pr)
-            assert_calls(mock_info,
-                         call('Handling PR#180 by Dummy'),
-                         call('PR#180 STATUS: approves! Dummy Approval!'))
-        assert_calls(farcy.repo.create_status,
-                     call('dummy', 'pending', context='farcy',
-                          description='started investigation'),
-                     call('dummy', 'success', context='farcy',
-                          description='approves! Dummy Approval!'))
+            assert_calls(mock_info, call('Handling PR#180 by Dummy'))
+
+        mock_added_lines.assert_called_with('')
+        mock_get_issues.assert_called_once_with(pfile)
+        farcy.repo.create_status.assert_called_once_with(
+            'dummy', 'pending', context='farcy',
+            description='started investigation')
 
     def test_handle_pr__pr_closed(self):
         pr = MagicMock(number=180, state='closed')
@@ -148,6 +167,29 @@ class FarcyTest(FarcyBaseTest):
             mock_debug.assert_called_with(
                 'Skipping PR#180: invalid state (closed)')
         pr.refresh.assert_called_with()
+
+    def test_handle_pr__success_without_any_changed_files(self):
+        pr = MagicMock(number=180, state='open', user=Struct(login='Dummy'))
+        pr.commits.return_value = [Struct(sha='dummy')]
+        pr.files.return_value = [mockpfile()]
+        farcy = self._farcy_instance()
+        with patch.object(self.logger, 'info') as mock_info:
+            farcy.handle_pr(pr)
+            assert_calls(mock_info,
+                         call('Handling PR#180 by Dummy'),
+                         call('PR#180 STATUS: approves! Dummy Approval!'))
+        assert_status(farcy)
+
+    def test_handle_pr__success_without_files(self):
+        pr = MagicMock(number=180, state='open', user=Struct(login='Dummy'))
+        pr.commits.return_value = [Struct(sha='dummy')]
+        farcy = self._farcy_instance()
+        with patch.object(self.logger, 'info') as mock_info:
+            farcy.handle_pr(pr)
+            assert_calls(mock_info,
+                         call('Handling PR#180 by Dummy'),
+                         call('PR#180 STATUS: approves! Dummy Approval!'))
+        assert_status(farcy)
 
     def test_handle_pr__user_not_whitelisted(self):
         pr = Struct(number=180, user=Struct(login='Dummy'))
