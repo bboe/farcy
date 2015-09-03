@@ -7,13 +7,36 @@ from farcy import Farcy, FarcyException, main, no_handler_debug_factory
 from farcy.helpers import Config, UTC
 from mock import MagicMock, call, patch
 from requests import ConnectionError
+import farcy as farcy_module
 import logging
 import unittest
+
+Config.PATH = '/dev/null'  # Don't allow the system config file to load.
+farcy_module.APPROVAL_PHRASES = ['Dummy Approval']  # Provide only one option.
 
 PFILE_ATTRS = ['contents', 'filename', 'patch', 'status']
 
 MockInfo = namedtuple('Info', ['decoded'])
 MockPFile = namedtuple('PFile', PFILE_ATTRS)
+
+
+def assert_calls(method, *calls):
+    method.assert_has_calls(list(calls))
+    assert method.call_count == len(calls), "{0} != {1}".format(
+        list(calls), method.mock_calls)
+
+
+def assert_status(farcy, failures=0):
+    if failures:
+        call2 = call('dummy', 'error', context='farcy',
+                     description='found {0} issue{1}'.format(
+                         failures, 's' if failures > 1 else ''))
+    else:
+        call2 = call('dummy', 'success', context='farcy',
+                     description='approves! Dummy Approval!')
+    assert_calls(farcy.repo.create_status,
+                 call('dummy', 'pending', context='farcy',
+                      description='started investigation'), call2)
 
 
 class Struct(object):
@@ -32,10 +55,16 @@ def mockpfile(**kwargs):
 
 
 class FarcyBaseTest(unittest.TestCase):
+    def setUp(self):
+        logging.disable(logging.CRITICAL)
+        self.logger = logging.getLogger('farcy')
+
     @patch('farcy.helpers.get_session')
     @patch('farcy.UpdateChecker')
     def _farcy_instance(self, mock_update_checker, mock_get_session,
-                        config=Config(None)):
+                        config=None):
+        if config is None:
+            config = Config(None)
         if config.repository is None:
             config.repository = 'dummy/dummy'
         farcy = Farcy(config)
@@ -92,9 +121,8 @@ class FarcyTest(FarcyBaseTest):
         self.assertEqual({'deleted_files': 11}, stats)
 
     def test_compute_pfile_stats__unexpected_status(self):
-        logger = logging.getLogger('farcy')
         stats = {}
-        with patch.object(logger, 'critical') as mock_critical:
+        with patch.object(self.logger, 'critical') as mock_critical:
             self.assertEqual(None, self._farcy_instance()._compute_pfile_stats(
                 mockpfile(patch='', status='foobar'), stats))
             self.assertTrue(mock_critical.called)
@@ -109,6 +137,120 @@ class FarcyTest(FarcyBaseTest):
     def test_get_issues__no_handlers(self):
         farcy = self._farcy_instance()
         self.assertEqual({}, farcy.get_issues(mockpfile(filename='')))
+
+
+class FarcyHandlePrTest(FarcyBaseTest):
+    @patch('farcy.Farcy.get_issues')
+    @patch('farcy.added_lines')
+    def test_handle_pr__exception_from_get_issues(self, mock_added_lines,
+                                                  mock_get_issues):
+        def side_effect():
+            raise Exception()
+
+        mock_added_lines.return_value = {16: 16}
+        mock_get_issues.side_effect = side_effect
+
+        pr = MagicMock(number=180, state='open', user=Struct(login='Dummy'))
+        pr.commits.return_value = [Struct(sha='dummy')]
+        pfile = mockpfile(patch='', status='added')
+        pr.files.return_value = [pfile]
+
+        farcy = self._farcy_instance()
+        with patch.object(self.logger, 'info') as mock_info:
+            farcy.handle_pr(pr)
+            assert_calls(mock_info, call('Handling PR#180 by Dummy'))
+
+        mock_added_lines.assert_called_with('')
+        mock_get_issues.assert_called_once_with(pfile)
+        farcy.repo.create_status.assert_called_once_with(
+            'dummy', 'pending', context='farcy',
+            description='started investigation')
+
+    def test_handle_pr__pr_closed(self):
+        pr = MagicMock(number=180, state='closed')
+        farcy = self._farcy_instance()
+        with patch.object(self.logger, 'debug') as mock_debug:
+            farcy.handle_pr(pr)
+            mock_debug.assert_called_with(
+                'Skipping PR#180: invalid state (closed)')
+        pr.refresh.assert_called_with()
+
+    @patch('farcy.Farcy.get_issues')
+    @patch('farcy.added_lines')
+    def test_handle_pr__single_failure(self, mock_added_lines,
+                                       mock_get_issues):
+        mock_added_lines.return_value = {16: 16}
+        mock_get_issues.return_value = {16: ['Dummy Failure']}
+
+        pr = MagicMock(number=180, state='open', user=Struct(login='Dummy'))
+        pr.commits.return_value = [Struct(sha='dummy')]
+        pfile = mockpfile(patch='', status='added')
+        pr.files.return_value = [pfile]
+
+        farcy = self._farcy_instance()
+        with patch.object(self.logger, 'info') as mock_info:
+            farcy.handle_pr(pr)
+            assert_calls(mock_info,
+                         call('Handling PR#180 by Dummy'),
+                         call('PR#180 STATUS: found 1 issue'))
+
+        mock_added_lines.assert_called_with('')
+        mock_get_issues.assert_called_once_with(pfile)
+        assert_status(farcy, failures=1)
+
+    @patch('farcy.Farcy.get_issues')
+    @patch('farcy.added_lines')
+    def test_handle_pr__success(self, mock_added_lines, mock_get_issues):
+        mock_added_lines.return_value = {16: 16}
+        mock_get_issues.return_value = {3: ['Failure on non-modified line.']}
+
+        pr = MagicMock(number=180, state='open', user=Struct(login='Dummy'))
+        pr.commits.return_value = [Struct(sha='dummy')]
+        pfile = mockpfile(patch='', status='added')
+        pr.files.return_value = [pfile]
+
+        farcy = self._farcy_instance()
+        with patch.object(self.logger, 'info') as mock_info:
+            farcy.handle_pr(pr)
+            assert_calls(mock_info,
+                         call('Handling PR#180 by Dummy'),
+                         call('PR#180 STATUS: approves! Dummy Approval!'))
+
+        mock_added_lines.assert_called_with('')
+        mock_get_issues.assert_called_once_with(pfile)
+        assert_status(farcy)
+
+    def test_handle_pr__success_without_any_changed_files(self):
+        pr = MagicMock(number=180, state='open', user=Struct(login='Dummy'))
+        pr.commits.return_value = [Struct(sha='dummy')]
+        pr.files.return_value = [mockpfile()]
+        farcy = self._farcy_instance()
+        with patch.object(self.logger, 'info') as mock_info:
+            farcy.handle_pr(pr)
+            assert_calls(mock_info,
+                         call('Handling PR#180 by Dummy'),
+                         call('PR#180 STATUS: approves! Dummy Approval!'))
+        assert_status(farcy)
+
+    def test_handle_pr__success_without_files(self):
+        pr = MagicMock(number=180, state='open', user=Struct(login='Dummy'))
+        pr.commits.return_value = [Struct(sha='dummy')]
+        farcy = self._farcy_instance()
+        with patch.object(self.logger, 'info') as mock_info:
+            farcy.handle_pr(pr)
+            assert_calls(mock_info,
+                         call('Handling PR#180 by Dummy'),
+                         call('PR#180 STATUS: approves! Dummy Approval!'))
+        assert_status(farcy)
+
+    def test_handle_pr__user_not_whitelisted(self):
+        pr = Struct(number=180, user=Struct(login='Dummy'))
+        farcy = self._farcy_instance()
+        farcy.config.limit_users = ['bboe']
+        with patch.object(self.logger, 'debug') as mock_debug:
+            farcy.handle_pr(pr)
+            mock_debug.assert_called_with(
+                'Skipping PR#180: Dummy is not whitelisted')
 
 
 class FarcyEventCallbackTest(FarcyBaseTest):
@@ -298,7 +440,7 @@ class FarcyEventTest(FarcyBaseTest):
         mock_events.return_value = [event1, event2]
 
         self._farcy_instance().run()
-        mock_callback.assert_has_calls([call(event1), call(event2)])
+        assert_calls(mock_callback, call(event1), call(event2))
         mock_callback.assert_called_with(event2)
 
     @patch('farcy.Farcy.handle_pr')
@@ -307,7 +449,7 @@ class FarcyEventTest(FarcyBaseTest):
         farcy.repo.pull_request.side_effect = lambda x: x
         farcy.config.pull_requests = '418'
         farcy.run()
-        mock_handle_pr.assert_has_calls(call(418, force=True))
+        assert_calls(mock_handle_pr, call(418, force=True))
 
     @patch('farcy.Farcy.handle_pr')
     def test_run__multiple_pull_requests(self, mock_handle_pr):
@@ -315,9 +457,8 @@ class FarcyEventTest(FarcyBaseTest):
         farcy.repo.pull_request.side_effect = lambda x: x
         farcy.config.pull_requests = '360,180,720'
         farcy.run()
-        mock_handle_pr.assert_has_calls([call(180, force=True),
-                                         call(360, force=True),
-                                         call(720, force=True)])
+        assert_calls(mock_handle_pr, call(180, force=True),
+                     call(360, force=True), call(720, force=True))
 
 
 class MainTest(unittest.TestCase):
@@ -375,12 +516,12 @@ class NoHandlerDebugFactory(unittest.TestCase):
         func(self.farcy, '.js')
         func(self.farcy, '.js')
         calls = [call('No handlers for extension .js')] * 2
-        self.farcy.log.debug.assert_has_calls(calls)
+        assert_calls(self.farcy.log.debug, *calls)
 
     def test_no_handler_factory__multiple_calls(self):
         func = no_handler_debug_factory(1)
         func(self.farcy, '.js')
         func(self.farcy, '.css')
-        calls = [call('No handlers for extension .js'),
-                 call('No handlers for extension .css')]
-        self.farcy.log.debug.assert_has_calls(calls)
+        assert_calls(self.farcy.log.debug,
+                     call('No handlers for extension .js'),
+                     call('No handlers for extension .css'))

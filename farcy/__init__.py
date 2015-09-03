@@ -102,8 +102,7 @@ class Farcy(object):
         # Keep track of open pull requests
         self.open_prs = {}
         for pr in self.repo.pull_requests(state='open'):
-            if pr.state == 'open':
-                self.open_prs[pr.head.ref] = pr
+            self.open_prs[pr.head.ref] = pr
 
         # Check for farcy package updates
         if not self._update_checked:
@@ -329,9 +328,9 @@ class Farcy(object):
                                .format(pr.number, key, count))
 
         if not exception:
-            state, message = self._get_state(handle_data['stats']['issue'])
+            state, message = self._get_state(handle_data['stats']['issues'])
             self._set_status(sha, state, message)
-            self.log.info('PR#{0} STATUS: "{1}"'.format(pr.number, message))
+            self.log.info('PR#{0} STATUS: {1}'.format(pr.number, message))
 
     no_handler_debug = no_handler_debug_factory()
 

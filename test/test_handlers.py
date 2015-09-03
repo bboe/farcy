@@ -106,7 +106,7 @@ class ESLintTest(FarcyTest):
     def test_single_error(self):
         """A single error should be returned."""
         errors = self.linter.process(self.path('single_issue.js'))
-        self.assertEqual({3: [('Unexpected console statement. (no-console)')]},
+        self.assertEqual({3: ['Unexpected console statement. (no-console)']},
                          errors)
 
 
