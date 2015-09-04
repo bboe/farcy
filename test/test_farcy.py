@@ -29,7 +29,7 @@ def assert_calls(method, *calls):
 
 def assert_status(farcy, failures=0):
     if failures:
-        call2 = call('dummy', 'error', context='farcy',
+        call2 = call('dummy', 'failure', context='farcy',
                      description='found {0} issue{1}'.format(
                          failures, 's' if failures > 1 else ''))
     else:
@@ -162,13 +162,18 @@ class FarcyHandlePrTest(FarcyBaseTest):
         farcy = self._farcy_instance()
         with patch.object(self.logger, 'info') as mock_info:
             farcy.handle_pr(pr)
-            assert_calls(mock_info, call('Handling PR#180 by Dummy'))
+            assert_calls(mock_info, call('Handling PR#180 by Dummy'),
+                         call('PR#180 STATUS: encountered an exception in '
+                              'handler. Check log.'))
 
         mock_added_lines.assert_called_with('')
         mock_get_issues.assert_called_once_with(pfile)
-        farcy.repo.create_status.assert_called_once_with(
-            'dummy', 'pending', context='farcy',
-            description='started investigation')
+        assert_calls(farcy.repo.create_status,
+                     call('dummy', 'pending', context='farcy',
+                          description='started investigation'),
+                     call('dummy', 'error', context='farcy',
+                          description=('encountered an exception in handler. '
+                                       'Check log.')))
 
     def test_handle_pr__pr_closed(self):
         pr = MagicMock(number=180, state='closed')
