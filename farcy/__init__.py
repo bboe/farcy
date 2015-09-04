@@ -196,10 +196,10 @@ class Farcy(object):
         file_issue_count = sum(len(x) for x in issues.values())
         data['stats']['issues'] += file_issue_count
 
-        unreported_issues = file_issue_count - sum(
+        already_commented_on_count = file_issue_count - sum(
             len(x) for x in file_issues_to_comment.values())
-        if unreported_issues > 0:
-            data['stats']['duplicate_issues'] += unreported_issues
+        if already_commented_on_count > 0:
+            data['stats']['duplicate_issues'] += already_commented_on_count
 
         for lineno, violations in sorted(file_issues_to_comment.items()):
             if data['count'] >= self.config.pr_issue_report_limit:
