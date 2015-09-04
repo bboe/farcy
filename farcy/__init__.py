@@ -47,8 +47,9 @@ from .const import (__version__, APPROVAL_PHRASES, FARCY_COMMENT_START,
                     STATUS_CONTEXT, VERSION_STR)
 from .exceptions import FarcyException, HandlerException
 from .helpers import (
-    Config, UTC, added_lines, filter_comments_from_farcy, issues_by_line,
-    plural, split_dict, subtract_issues_by_line)
+    added_lines, filter_comments_from_farcy, issues_by_line, plural,
+    split_dict, subtract_issues_by_line)
+from .objects import Config, UTC
 
 
 def no_handler_debug_factory(duration=3600):

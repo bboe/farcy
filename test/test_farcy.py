@@ -3,9 +3,8 @@
 from __future__ import print_function
 from collections import namedtuple
 from datetime import datetime
-from farcy import Farcy, FarcyException, main, no_handler_debug_factory
-from farcy.const import FARCY_COMMENT_START
-from farcy.helpers import Config, UTC
+from farcy import (Config, FARCY_COMMENT_START, Farcy, FarcyException, UTC,
+                   main, no_handler_debug_factory)
 from mock import MagicMock, call, patch
 from requests import ConnectionError
 import farcy as farcy_module
@@ -60,15 +59,16 @@ class FarcyBaseTest(unittest.TestCase):
         logging.disable(logging.CRITICAL)
         self.logger = logging.getLogger('farcy')
 
-    @patch('farcy.helpers.get_session')
     @patch('farcy.UpdateChecker')
-    def _farcy_instance(self, mock_update_checker, mock_get_session,
+    @patch('farcy.objects.get_session')
+    def _farcy_instance(self, mock_get_session, mock_update_checker,
                         config=None):
         if config is None:
             config = Config(None)
         if config.repository is None:
             config.repository = 'dummy/dummy'
         farcy = Farcy(config)
+        self.assertTrue(mock_get_session.called)
         self.assertTrue(mock_update_checker.called)
         return farcy
 
