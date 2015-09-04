@@ -4,12 +4,12 @@ from __future__ import print_function
 from collections import defaultdict
 from subprocess import CalledProcessError, STDOUT, check_output
 from update_checker import parse_version
-from .const import CONFIG_DIR
-from .exceptions import HandlerException, HandlerNotReady
 import json
 import logging
 import os
 import re
+from .const import CONFIG_DIR
+from .exceptions import HandlerException, HandlerNotReady
 
 
 # src: http://stackoverflow.com/a/11270665/176978

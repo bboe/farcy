@@ -1,15 +1,17 @@
 """Defines the standard objects used by Farcy."""
-import logging
-import os
-from datetime import timedelta, tzinfo
-from .const import CONFIG_DIR
-from .exceptions import FarcyException
-from .helpers import get_session, parse_bool, parse_set
+
 try:
     from configparser import ConfigParser  # PY3
     basestring = str
 except ImportError:
     from ConfigParser import SafeConfigParser as ConfigParser  # PY2
+
+from datetime import timedelta, tzinfo
+import logging
+import os
+from .const import CONFIG_DIR
+from .exceptions import FarcyException
+from .helpers import get_session, parse_bool, parse_set
 
 
 class Config(object):
