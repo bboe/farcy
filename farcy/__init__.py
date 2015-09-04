@@ -168,9 +168,11 @@ class Farcy(object):
         return ('Skipping PR#{0}: {1} is not whitelisted'
                 .format(pr.number, pr.user.login))
 
-    def _get_state(self, issues):
+    def _get_state(self, issues, exception):
+        if exception:
+            return 'error', 'encountered an exception in handler. Check log.'
         if issues > 0:
-            return 'error', 'found {0}'.format(plural(issues, 'issue'))
+            return 'failure', 'found {0}'.format(plural(issues, 'issue'))
         return 'success', 'approves! {0}!'.format(choice(APPROVAL_PHRASES))
 
     def _handle_pr_file(self, pfile, pr, sha, data):
@@ -327,10 +329,10 @@ class Farcy(object):
                 self.log.debug('PR#{0} {1:>16}: {2}'
                                .format(pr.number, key, count))
 
-        if not exception:
-            state, message = self._get_state(handle_data['stats']['issues'])
-            self._set_status(sha, state, message)
-            self.log.info('PR#{0} STATUS: {1}'.format(pr.number, message))
+        state, message = self._get_state(handle_data['stats']['issues'],
+                                         exception)
+        self._set_status(sha, state, message)
+        self.log.info('PR#{0} STATUS: {1}'.format(pr.number, message))
 
     no_handler_debug = no_handler_debug_factory()
 
