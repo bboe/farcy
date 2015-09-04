@@ -119,6 +119,51 @@ class Config(object):
         return self.limit_users is None or user.lower() in self.limit_users
 
 
+class ErrorMessage(object):
+    GROUP_THRESHOLD = 3  # lines
+
+    def __init__(self, message):
+        self.lines = {}  # Value is true when it's on github
+        self.message = message
+
+    def __len__(self):
+        return len(self.lines)
+
+    def count_github(self):
+        return len([x for x in self.lines.values() if x])
+
+    def count_new(self):
+        return len([x for x in self.lines.values() if not x])
+
+    def messages(self):
+        def output(start, count, span):
+            if count > 1:
+                return (start, '{0} <sub>{1}x spanning {2} lines</sub>'
+                        .format(self.message, count, span + 1))
+            return (start, self.message)
+
+        start = last = None
+        count = 0
+        for line, skip in sorted(self.lines.items()):
+            if skip:
+                continue
+            if start is None:
+                start = last = line
+            if line - last >= self.GROUP_THRESHOLD:
+                yield output(start, count, last - start)
+                count = 0
+                start = line
+            count += 1
+            last = line
+        if start:
+            yield output(start, count, last - start)
+
+    def track(self, line, on_github=False):
+        """Track the line and return self."""
+        self.lines[line] = self.lines.get(line, False) or on_github
+        return self
+
+
 class UTC(tzinfo):
 
     """Provides a simple UTC timezone class.
