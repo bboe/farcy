@@ -150,11 +150,6 @@ class ErrorMessageTest(unittest.TestCase):
         for line in lines:
             self.message.track(line, on_github)
 
-    def assert_counts(self, total, github, new):
-        self.assertEqual(total, len(self.message))
-        self.assertEqual(github, self.message.count_github())
-        self.assertEqual(new, self.message.count_new())
-
     def test_messages__group_consequtive(self):
         self.add_lines(False, 1, 2, 3)
         self.assertEqual([(1, 'Dummy Message <sub>3x spanning 3 lines</sub>')],
@@ -165,32 +160,23 @@ class ErrorMessageTest(unittest.TestCase):
         self.assertEqual([(1, 'Dummy Message <sub>3x spanning 5 lines</sub>')],
                          list(self.message.messages()))
 
+    def test_messages__group_span__existing_group(self):
+        self.add_lines(False, 1, 3, 5)
+        self.message.track_group(1, 3)
+        self.assertEqual([], list(self.message.messages()))
+
     def test_messages__no_grouping(self):
         self.add_lines(False, 1, 4, 100, 105)
-        self.assertEqual([(1, 'Dummy Message'), (4, 'Dummy Message'),
-                          (100, 'Dummy Message'), (105, 'Dummy Message')],
+        self.add_lines(True, 2, 4, 101, 106)
+        self.assertEqual([(1, 'Dummy Message'), (100, 'Dummy Message'),
+                          (105, 'Dummy Message')],
                          list(self.message.messages()))
 
-    def test_no_messages(self):
-        self.assert_counts(0, 0, 0)
-
-    def test_track_and_counts__multiple_messages(self):
-        self.add_lines(False, 16, 1, 28)
-        self.add_lines(True, 17, 1, 27)
-        self.assert_counts(5, 3, 2)
-
-    def test_track_and_counts__single_github_message(self):
-        self.message.track(15, on_github=True)
-        self.assert_counts(1, 1, 0)
-
-    def test_track_and_counts__single_message_on_both(self):
-        self.message.track(15, on_github=True)
-        self.message.track(15, on_github=False)
-        self.assert_counts(1, 1, 0)
-
-    def test_track_and_counts__single_new_message(self):
-        self.message.track(15)
-        self.assert_counts(1, 0, 1)
+    def test_messages__no_messages(self):
+        self.assertEqual([], list(self.message.messages()))
 
     def test_track__return_value(self):
         self.assertEqual(self.message, self.message.track(16))
+
+    def test_track_group__return_value(self):
+        self.assertEqual(self.message, self.message.track_group(16, 2))

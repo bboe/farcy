@@ -120,22 +120,24 @@ class Config(object):
 
 
 class ErrorMessage(object):
+
+    """An error message keeps track the lines a single error appears on."""
+
     GROUP_THRESHOLD = 3  # lines
 
     def __init__(self, message):
+        """Initialize an ErrorMessage object."""
+        self.groups = set()
         self.lines = {}  # Value is true when it's on github
         self.message = message
 
-    def __len__(self):
-        return len(self.lines)
-
-    def count_github(self):
-        return len([x for x in self.lines.values() if x])
-
-    def count_new(self):
-        return len([x for x in self.lines.values() if not x])
-
     def messages(self):
+        """Yield a tuple containing (line, message).
+
+        Messages near each other will be grouped and the message will indicate
+        how many lines are covered by the message.
+
+        """
         def output(start, count, span):
             if count > 1:
                 return (start, '{0} <sub>{1}x spanning {2} lines</sub>'
@@ -150,17 +152,23 @@ class ErrorMessage(object):
             if start is None:
                 start = last = line
             if line - last >= self.GROUP_THRESHOLD:
-                yield output(start, count, last - start)
+                if (start, count) not in self.groups:
+                    yield output(start, count, last - start)
                 count = 0
                 start = line
             count += 1
             last = line
-        if start:
+        if start and (start, count) not in self.groups:
             yield output(start, count, last - start)
 
     def track(self, line, on_github=False):
         """Track the line and return self."""
         self.lines[line] = self.lines.get(line, False) or on_github
+        return self
+
+    def track_group(self, line, count):
+        """Record a grouping for this message that is on github."""
+        self.groups.add((line, count))
         return self
 
 
