@@ -2,7 +2,6 @@
 
 try:
     from configparser import ConfigParser  # PY3
-    basestring = str
 except ImportError:
     from ConfigParser import SafeConfigParser as ConfigParser  # PY2
 
@@ -170,6 +169,24 @@ class ErrorMessage(object):
         """Record a grouping for this message that is on github."""
         self.groups.add((line, count))
         return self
+
+
+class ErrorTracker(object):
+
+    """Track ErrorMessages across multiple files."""
+
+    def __init__(self):
+        """Initialize an ErrorTracker object."""
+        self.by_file = set()
+
+    def track(self, message, filename, line, on_github=False):
+        """Track message in filename on line."""
+        if filename not in self.by_file:
+            self.by_file[filename] = {}
+
+        if message not in self.by_file[filename]:
+            self.by_file[filename][message] = ErrorMessage(message)
+        self.by_file[filename][message].track(line, on_github)
 
 
 class UTC(tzinfo):

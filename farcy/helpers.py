@@ -10,6 +10,9 @@ from .exceptions import FarcyException
 
 IS_FARCY_COMMENT = FARCY_COMMENT_START.split('v')[0]
 
+if sys.version_info >= (3, 0):
+    basestring = str
+
 
 def added_lines(patch):
     """Return a mapping of added line numbers to the patch line numbers."""
