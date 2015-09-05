@@ -1,7 +1,5 @@
 """Defines the exceptions used in the farcy package."""
 
-from __future__ import print_function
-
 
 class FarcyException(Exception):
 

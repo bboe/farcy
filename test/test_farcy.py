@@ -3,14 +3,14 @@
 from __future__ import print_function
 from collections import namedtuple
 from datetime import datetime
-from farcy import Farcy, FarcyException, main, no_handler_debug_factory
-from farcy.const import FARCY_COMMENT_START
-from farcy.helpers import Config, UTC
+from farcy import (Config, FARCY_COMMENT_START, Farcy, FarcyException, UTC,
+                   main, no_handler_debug_factory)
 from mock import MagicMock, call, patch
 from requests import ConnectionError
 import farcy as farcy_module
 import logging
 import unittest
+from .helper import Struct
 
 Config.PATH = '/dev/null'  # Don't allow the system config file to load.
 farcy_module.APPROVAL_PHRASES = ['Dummy Approval']  # Provide only one option.
@@ -40,15 +40,6 @@ def assert_status(farcy, failures=0):
                       description='started investigation'), call2)
 
 
-class Struct(object):
-    def __init__(self, iterable=None, **attrs):
-        self.__dict__.update(attrs)
-        self._iterable = iterable or []
-
-    def __getitem__(self, index):
-            return self._iterable[index]
-
-
 def mockpfile(**kwargs):
     for attr in PFILE_ATTRS:
         kwargs.setdefault(attr, None)
@@ -60,15 +51,16 @@ class FarcyBaseTest(unittest.TestCase):
         logging.disable(logging.CRITICAL)
         self.logger = logging.getLogger('farcy')
 
-    @patch('farcy.helpers.get_session')
     @patch('farcy.UpdateChecker')
-    def _farcy_instance(self, mock_update_checker, mock_get_session,
+    @patch('farcy.objects.get_session')
+    def _farcy_instance(self, mock_get_session, mock_update_checker,
                         config=None):
         if config is None:
             config = Config(None)
         if config.repository is None:
             config.repository = 'dummy/dummy'
         farcy = Farcy(config)
+        self.assertTrue(mock_get_session.called)
         self.assertTrue(mock_update_checker.called)
         return farcy
 
@@ -208,38 +200,6 @@ class FarcyHandlePrTest(FarcyBaseTest):
         assert_calls(pr.create_review_comment, call(
             '{0}\n* Dummy Failure'.format(FARCY_COMMENT_START),
             'dummy', 'DummyFile', 16))
-        assert_status(farcy, failures=1)
-
-    @patch('farcy.Farcy.get_issues')
-    @patch('farcy.added_lines')
-    def test_handle_pr__single_failure__duplicate_comment(
-            self, mock_added_lines, mock_get_issues):
-        mock_added_lines.return_value = {16: 16}
-        mock_get_issues.return_value = {16: ['MatchingError']}
-
-        pr = MagicMock(number=180, state='open', user=Struct(login='Dummy'))
-        pr.commits.return_value = [Struct(sha='dummy')]
-        pr.review_comments.return_value = [self.DUMMY_COMMENT]
-
-        pfile = mockpfile(filename='DummyFile', patch='', status='added')
-        pr.files.return_value = [pfile]
-
-        farcy = self._farcy_instance()
-        with patch.object(self.logger, 'debug') as mock_debug:
-            with patch.object(self.logger, 'info') as mock_info:
-                farcy.handle_pr(pr)
-                assert_calls(mock_info,
-                             call('Handling PR#180 by Dummy'),
-                             call('PR#180 STATUS: found 1 issue'))
-            assert_calls(mock_debug,
-                         call('PR#180      added_files: 1'),
-                         call('PR#180      added_lines: 1'),
-                         call('PR#180 duplicate_issues: 1'),
-                         call('PR#180           issues: 1'))
-
-        mock_added_lines.assert_called_with('')
-        mock_get_issues.assert_called_once_with(pfile)
-        assert_calls(pr.create_review_comment)
         assert_status(farcy, failures=1)
 
     @patch('farcy.Farcy.get_issues')
