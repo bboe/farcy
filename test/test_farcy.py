@@ -10,6 +10,7 @@ from requests import ConnectionError
 import farcy as farcy_module
 import logging
 import unittest
+from .helper import Struct
 
 Config.PATH = '/dev/null'  # Don't allow the system config file to load.
 farcy_module.APPROVAL_PHRASES = ['Dummy Approval']  # Provide only one option.
@@ -37,15 +38,6 @@ def assert_status(farcy, failures=0):
     assert_calls(farcy.repo.create_status,
                  call('dummy', 'pending', context='farcy',
                       description='started investigation'), call2)
-
-
-class Struct(object):
-    def __init__(self, iterable=None, **attrs):
-        self.__dict__.update(attrs)
-        self._iterable = iterable or []
-
-    def __getitem__(self, index):
-            return self._iterable[index]
 
 
 def mockpfile(**kwargs):

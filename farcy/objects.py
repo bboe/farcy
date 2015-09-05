@@ -219,7 +219,7 @@ class ErrorTracker(object):
             message, ErrorMessage(message))
 
         if parts:
-            error_message.track_group(line, parts[1])
+            error_message.track_group(line, int(parts[1]))
         else:
             if not is_github:
                 self.new_issue_count += 1
