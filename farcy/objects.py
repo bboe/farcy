@@ -8,7 +8,8 @@ except ImportError:
 from datetime import timedelta, tzinfo
 import logging
 import os
-from .const import CONFIG_DIR
+import re
+from .const import CONFIG_DIR, FARCY_COMMENT_START
 from .exceptions import FarcyException
 from .helpers import get_session, parse_bool, parse_set
 
@@ -175,18 +176,54 @@ class ErrorTracker(object):
 
     """Track ErrorMessages across multiple files."""
 
-    def __init__(self):
+    FARCY_PREFIX = FARCY_COMMENT_START.split('v')[0]
+    GROUP_MATCH = re.compile('(.+) <sub>(\d+)x spanning \d+ lines</sub>')
+
+    @classmethod
+    def _parse_group_message(cls, message):
+        match = cls.GROUP_MATCH.match(message)
+        return match.groups() if match else None
+
+    def __init__(self, github_comments):
         """Initialize an ErrorTracker object."""
-        self.by_file = set()
+        self.by_file = {}
+        self.github_message_count = 0
+        self.new_issue_count = 0
+        self.from_github_comments(github_comments)
 
-    def track(self, message, filename, line, on_github=False):
+    def errors(self, filename):
+        """Generate tuples containing (line, [errors...])."""
+        by_line = {}
+        for error in self.by_file.get(filename, {}).values():
+            for line, message in error.messages():
+                by_line.setdefault(line, []).append(message)
+        for line in sorted(by_line):
+            yield (line, sorted(by_line[line]))
+
+    def from_github_comments(self, comments):
+        """Populate the error tracker with Farcy comments from github."""
+        for comment in comments:
+            if not comment.body.startswith(self.FARCY_PREFIX):
+                continue
+            self.github_message_count += 1
+            for issue in comment.body.split('\n')[1:]:
+                self.track(issue[2:], comment.path, comment.position, True)
+
+    def track(self, message, filename, line, is_github=False):
         """Track message in filename on line."""
-        if filename not in self.by_file:
-            self.by_file[filename] = {}
+        parts = self._parse_group_message(message)
+        if parts:
+            message = parts[0]
 
-        if message not in self.by_file[filename]:
-            self.by_file[filename][message] = ErrorMessage(message)
-        self.by_file[filename][message].track(line, on_github)
+        error_message = self.by_file.setdefault(filename, {}).setdefault(
+            message, ErrorMessage(message))
+
+        if parts:
+            error_message.track_group(line, parts[1])
+        else:
+            if not is_github:
+                self.new_issue_count += 1
+            error_message.track(line, is_github)
 
 
 class UTC(tzinfo):

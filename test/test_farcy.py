@@ -212,38 +212,6 @@ class FarcyHandlePrTest(FarcyBaseTest):
 
     @patch('farcy.Farcy.get_issues')
     @patch('farcy.added_lines')
-    def test_handle_pr__single_failure__duplicate_comment(
-            self, mock_added_lines, mock_get_issues):
-        mock_added_lines.return_value = {16: 16}
-        mock_get_issues.return_value = {16: ['MatchingError']}
-
-        pr = MagicMock(number=180, state='open', user=Struct(login='Dummy'))
-        pr.commits.return_value = [Struct(sha='dummy')]
-        pr.review_comments.return_value = [self.DUMMY_COMMENT]
-
-        pfile = mockpfile(filename='DummyFile', patch='', status='added')
-        pr.files.return_value = [pfile]
-
-        farcy = self._farcy_instance()
-        with patch.object(self.logger, 'debug') as mock_debug:
-            with patch.object(self.logger, 'info') as mock_info:
-                farcy.handle_pr(pr)
-                assert_calls(mock_info,
-                             call('Handling PR#180 by Dummy'),
-                             call('PR#180 STATUS: found 1 issue'))
-            assert_calls(mock_debug,
-                         call('PR#180      added_files: 1'),
-                         call('PR#180      added_lines: 1'),
-                         call('PR#180 duplicate_issues: 1'),
-                         call('PR#180           issues: 1'))
-
-        mock_added_lines.assert_called_with('')
-        mock_get_issues.assert_called_once_with(pfile)
-        assert_calls(pr.create_review_comment)
-        assert_status(farcy, failures=1)
-
-    @patch('farcy.Farcy.get_issues')
-    @patch('farcy.added_lines')
     def test_handle_pr__single_failure__limit_exceeded(self, mock_added_lines,
                                                        mock_get_issues):
         mock_added_lines.return_value = {16: 16}

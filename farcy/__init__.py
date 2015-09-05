@@ -46,10 +46,8 @@ import time
 from .const import (__version__, APPROVAL_PHRASES, FARCY_COMMENT_START,
                     STATUS_CONTEXT, VERSION_STR)
 from .exceptions import FarcyException, HandlerException
-from .helpers import (
-    added_lines, filter_comments_from_farcy, issues_by_line, plural,
-    split_dict, subtract_issues_by_line)
-from .objects import Config, UTC
+from .helpers import added_lines, plural
+from .objects import Config, ErrorTracker, UTC
 
 
 def no_handler_debug_factory(duration=3600):
@@ -189,23 +187,14 @@ class Farcy(object):
                                .format(pfile.filename))
             return True
 
-        # Maps patch line number to violation
-        issues = {added[lineno]: value for lineno, value in
-                  split_dict(file_issues, added.keys())[0].items()}
+        for line, messages in file_issues.items():
+            if line not in added:  # Skip unadded/unmodified lines.
+                continue
+            for message in messages:
+                data['errors'].track(message, pfile.filename, added[line])
 
-        file_issues_to_comment = subtract_issues_by_line(
-            issues, issues_by_line(data['existing'], pfile.filename))
-
-        file_issue_count = sum(len(x) for x in issues.values())
-        data['stats']['issues'] += file_issue_count
-
-        already_commented_on_count = file_issue_count - sum(
-            len(x) for x in file_issues_to_comment.values())
-        if already_commented_on_count > 0:
-            data['stats']['duplicate_issues'] += already_commented_on_count
-
-        for lineno, violations in sorted(file_issues_to_comment.items()):
-            if data['count'] >= self.config.pr_issue_report_limit:
+        for line, violations in data['errors'].errors(pfile.filename):
+            if data['comments'] >= self.config.pr_issue_report_limit:
                 data['stats']['skipped_issues'] += 1
                 continue
 
@@ -213,18 +202,18 @@ class Farcy(object):
                 # Only log each issue if we're in debugging mode because we
                 # don't want the logs in non-debugging mode to be noisy.
                 self.log.info('PR#{0} ({1}:{2}): {3}"'.format(
-                    pr.number, pfile.filename, lineno, violations))
+                    pr.number, pfile.filename, line, violations))
             else:
                 msg = '\n'.join(
                     [FARCY_COMMENT_START] + ['* {}'.format(violation)
                                              for violation in violations])
-                (pr.create_review_comment(msg, sha, pfile.filename, lineno)
+                (pr.create_review_comment(msg, sha, pfile.filename, line)
                  .html_url['href'])
 
-            # `data['count']` is misleading when in debug mode.  What
+            # `data['comments']` is misleading when in debug mode.  What
             # it really means is the number of comments that would be on
             # on the pr (existing + new) when not in debug mode.
-            data['count'] += 1
+            data['comments'] += 1
         return False
 
     def _load_handlers(self):
@@ -317,12 +306,15 @@ class Farcy(object):
                       .format(pr.number, pr.user.login))
 
         exception = False
-        existing = list(filter_comments_from_farcy(pr.review_comments()))
-        handle_data = {'count': len(existing), 'existing': existing,
+        error_tracker = ErrorTracker(pr.review_comments())
+        handle_data = {'comments': error_tracker.github_message_count,
+                       'errors': error_tracker,
                        'stats': Counter()}
         for pfile in pr.files():
             exception = self._handle_pr_file(
                 pfile, pr, sha, handle_data) or exception
+
+        handle_data['stats']['issues'] += error_tracker.new_issue_count
 
         # Log the statistics for the PR
         for key, count in sorted(handle_data['stats'].items()):
