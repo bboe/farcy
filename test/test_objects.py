@@ -83,7 +83,8 @@ class ConfigTest(unittest.TestCase):
 
     def test_config__repr(self):
         config = self._config_instance(None, repo='a/b')
-        repr_str = ("Config('a/b', debug=False, exclude_paths=None, "
+        repr_str = ("Config('a/b', comment_group_threshold=3, debug=False, "
+                    "exclude_paths=None, "
                     "limit_users=None, log_level='ERROR', "
                     "pr_issue_report_limit=128, pull_requests=None, "
                     "start_event=None)")
@@ -145,7 +146,7 @@ class ConfigTest(unittest.TestCase):
 
 class ErrorMessageTest(unittest.TestCase):
     def setUp(self):
-        self.message = objects.ErrorMessage('Dummy Message')
+        self.message = objects.ErrorMessage('Dummy Message', 2)
 
     def add_lines(self, on_github, *lines):
         for line in lines:
@@ -184,7 +185,7 @@ class ErrorMessageTest(unittest.TestCase):
 
 class ErrorTrackerTest(unittest.TestCase):
     def setUp(self):
-        self.tracker = objects.ErrorTracker([])
+        self.tracker = objects.ErrorTracker([], 2)
 
     def test_initial_values(self):
         self.assertEqual(0, self.tracker.github_message_count)

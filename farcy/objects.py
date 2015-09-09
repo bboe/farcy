@@ -18,8 +18,11 @@ class Config(object):
 
     """Holds configuration for Farcy."""
 
-    ATTRIBUTES = {'debug', 'exclude_paths', 'limit_users', 'log_level',
-                  'pr_issue_report_limit', 'pull_requests', 'start_event'}
+    ATTRIBUTES = {'comment_group_threshold', 'debug', 'exclude_paths',
+                  'limit_users', 'log_level', 'pr_issue_report_limit',
+                  'pull_requests', 'start_event'}
+    INT_ATTRS = {'comment_group_threshold', 'pr_issue_report_limit',
+                 'start_event'}
     LOG_LEVELS = {'CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'NOTSET'}
     PATH = os.path.join(CONFIG_DIR, 'farcy.conf')
 
@@ -77,7 +80,7 @@ class Config(object):
             repo_parts = value.split('/')
             if len(repo_parts) != 2:
                 raise FarcyException('Invalid repository: {0}'.format(value))
-        elif attr in ('pr_issue_report_limit', 'start_event'):
+        elif attr in self.INT_ATTRS:
             if value is not None:
                 value = int(value)
         super(Config, self).__setattr__(attr, value)
@@ -106,6 +109,7 @@ class Config(object):
 
     def set_defaults(self):
         """Set the default config values."""
+        self.comment_group_threshold = 3
         self.debug = False
         self.exclude_paths = None
         self.limit_users = None
@@ -123,10 +127,18 @@ class ErrorMessage(object):
 
     """An error message keeps track the lines a single error appears on."""
 
-    GROUP_THRESHOLD = 3  # lines
+    def __init__(self, message, group_threshold):
+        """Initialize an ErrorMessage object.
 
-    def __init__(self, message):
-        """Initialize an ErrorMessage object."""
+        :param message: The error message.
+        :param group_threshold: The number of lines across which to group
+            this ErrorMessage. If the threshold is 2, and this error occurs on
+            lines 10, 12, 14, 17, then the first three errors will be grouped
+            together as there are at most 2 lines between any two instances
+            within the group.
+
+        """
+        self.group_threshold = group_threshold
         self.groups = set()
         self.lines = {}  # Value is true when it's on github
         self.message = message
@@ -151,7 +163,7 @@ class ErrorMessage(object):
                 continue
             if start is None:
                 start = last = line
-            if line - last >= self.GROUP_THRESHOLD:
+            if line - last > self.group_threshold:
                 if (start, count) not in self.groups:
                     yield output(start, count, last - start)
                 count = 0
@@ -184,10 +196,20 @@ class ErrorTracker(object):
         match = cls.GROUP_MATCH.match(message)
         return match.groups() if match else None
 
-    def __init__(self, github_comments):
-        """Initialize an ErrorTracker object."""
+    def __init__(self, github_comments, group_threshold):
+        """Initialize an ErrorTracker object.
+
+        :param github_comments: The comments that already exist on github.
+        :param group_threshold: The number of lines across which to group
+            this ErrorMessage. If the threshold is 2, and this error occurs on
+            lines 10, 12, 14, 17, then the first three errors will be grouped
+            together as there are at most 2 lines between any two instances
+            within the group.
+
+        """
         self.by_file = {}
         self.github_message_count = 0
+        self.group_threshold = group_threshold
         self.new_issue_count = 0
         self.from_github_comments(github_comments)
 
@@ -216,7 +238,7 @@ class ErrorTracker(object):
             message = parts[0]
 
         error_message = self.by_file.setdefault(filename, {}).setdefault(
-            message, ErrorMessage(message))
+            message, ErrorMessage(message, self.group_threshold))
 
         if parts:
             error_message.track_group(line, int(parts[1]))

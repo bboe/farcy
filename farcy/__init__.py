@@ -306,7 +306,8 @@ class Farcy(object):
                       .format(pr.number, pr.user.login))
 
         exception = False
-        error_tracker = ErrorTracker(pr.review_comments())
+        error_tracker = ErrorTracker(pr.review_comments(),
+                                     self.config.comment_group_threshold)
         handle_data = {'comments': error_tracker.github_message_count,
                        'errors': error_tracker,
                        'stats': Counter()}
