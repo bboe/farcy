@@ -77,7 +77,7 @@ Optional external pacakges needed for various file types
 
     $ pip install farcy[python]
 
-**Ruby**: In order to provide code review of ruby files, ``rubycop`` is
+**Ruby**: In order to provide code review of ruby files, ``rubocop`` is
 required. Install via:
 
 .. code-block:: bash
