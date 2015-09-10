@@ -45,7 +45,7 @@ file is optional and values can be overwritten by commandline arguments. On boot
 Farcy will look for a configuration file at ``~/.config/farcy/farcy.conf``.
 
 The configuration file can contain a ``DEFAULT`` section and a section per repository
-with specific settings. The ``DEFAULT`` section can take an optional ``repsitory`` key.
+with specific settings. The ``DEFAULT`` section can take an optional ``repository`` key.
 
 .. code-block::
 
