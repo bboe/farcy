@@ -109,6 +109,10 @@ class ExtHandler(object):
         try:
             version = (check_output([self.BINARY, '--version'], stderr=STDOUT)
                        .decode('utf-8'))
+
+            # Remove all non 'versioning' characters from the string
+            version = re.search('(\d+\.*)+', version).group(0)
+
         except OSError as exc:
             if exc.errno == 2:
                 raise HandlerNotReady('{0} is not installed.'
