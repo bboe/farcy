@@ -210,6 +210,7 @@ class ErrorTracker(object):
         self.by_file = {}
         self.github_message_count = 0
         self.group_threshold = group_threshold
+        self.hidden_issue_count = 0
         self.new_issue_count = 0
         self.from_github_comments(github_comments)
 
@@ -226,6 +227,9 @@ class ErrorTracker(object):
         """Populate the error tracker with Farcy comments from github."""
         for comment in comments:
             if not comment.body.startswith(self.FARCY_PREFIX):
+                continue
+            if comment.position == 0:
+                self.hidden_issue_count += 1
                 continue
             self.github_message_count += 1
             for issue in comment.body.split('\n')[1:]:

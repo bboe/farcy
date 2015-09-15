@@ -199,6 +199,7 @@ class ErrorTrackerTest(unittest.TestCase):
         self.tracker.from_github_comments([comment])
 
         self.assertEqual(0, self.tracker.github_message_count)
+        self.assertEqual(0, self.tracker.hidden_issue_count)
         self.assertEqual(0, self.tracker.new_issue_count)
         self.assertEqual([], list(self.tracker.errors('DummyFile')))
 
@@ -211,6 +212,7 @@ class ErrorTrackerTest(unittest.TestCase):
         self.tracker.track('MatchingError', 'DummyFile', 19)
 
         self.assertEqual(1, self.tracker.github_message_count)
+        self.assertEqual(0, self.tracker.hidden_issue_count)
         self.assertEqual(3, self.tracker.new_issue_count)
         self.assertEqual([], list(self.tracker.errors('DummyFile')))
 
@@ -222,11 +224,13 @@ class ErrorTrackerTest(unittest.TestCase):
         self.tracker.from_github_comments([comment])
 
         self.assertEqual(1, self.tracker.github_message_count)
+        self.assertEqual(0, self.tracker.hidden_issue_count)
         self.assertEqual(0, self.tracker.new_issue_count)
         self.assertEqual([], list(self.tracker.errors('DummyFile')))
 
         self.tracker.track('MatchingError', 'DummyFile', 16)
         self.assertEqual(1, self.tracker.github_message_count)
+        self.assertEqual(0, self.tracker.hidden_issue_count)
         self.assertEqual(1, self.tracker.new_issue_count)
         self.assertEqual([], list(self.tracker.errors('DummyFile')))
 
@@ -253,3 +257,13 @@ class ErrorTrackerTest(unittest.TestCase):
         self.assertEqual(2, self.tracker.new_issue_count)
         self.assertEqual([(16, ['Non MatchingError'])],
                          list(self.tracker.errors('DummyFile')))
+
+    def test_only_hidden_issues(self):
+        comment = Struct(body='_[farcy \n* MatchingError', path='DummyFile',
+                         position=0)
+        self.tracker.from_github_comments([comment])
+
+        self.assertEqual(0, self.tracker.github_message_count)
+        self.assertEqual(1, self.tracker.hidden_issue_count)
+        self.assertEqual(0, self.tracker.new_issue_count)
+        self.assertEqual([], list(self.tracker.errors('DummyFile')))
