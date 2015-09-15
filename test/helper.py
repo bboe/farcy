@@ -1,5 +1,6 @@
 """Farcy test helpers."""
 
+
 class Struct(object):
     def __init__(self, iterable=None, **attrs):
         self.__dict__.update(attrs)

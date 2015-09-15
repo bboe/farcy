@@ -37,7 +37,9 @@ setup(name=PACKAGE_NAME,
       license='Simplified BSD License',
       long_description=README,
       packages=[PACKAGE_NAME],
-      tests_require=['mock >= 1.0.1'],
+      tests_require=['mock >= 1.0.1',
+                     # https://bugs.launchpad.net/pbr/+bug/1493735
+                     'pbr < 1.7.0'],
       test_suite='test',
       url='https://github.com/appfolio/farcy',
       version=VERSION)

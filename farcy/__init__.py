@@ -316,6 +316,7 @@ class Farcy(object):
                 pfile, pr, sha, handle_data) or exception
 
         handle_data['stats']['issues'] += error_tracker.new_issue_count
+        handle_data['stats']['hidden'] += error_tracker.hidden_issue_count
 
         # Log the statistics for the PR
         for key, count in sorted(handle_data['stats'].items()):
