@@ -183,6 +183,7 @@ class ErrorMessageTest(unittest.TestCase):
     def test_track_group__return_value(self):
         self.assertEqual(self.message, self.message.track_group(16, 2))
 
+
 class ErrorTrackerTest(unittest.TestCase):
     def setUp(self):
         self.tracker = objects.ErrorTracker([], 2)
@@ -194,7 +195,7 @@ class ErrorTrackerTest(unittest.TestCase):
     def test_no_issues(self):
         self.assertEqual([], list(self.tracker.errors('DummyFile')))
 
-        comment = Struct(body='Regular comment', path='DummyFile',position=16)
+        comment = Struct(body='Regular comment', path='DummyFile', position=16)
         self.tracker.from_github_comments([comment])
 
         self.assertEqual(0, self.tracker.github_message_count)
@@ -239,18 +240,6 @@ class ErrorTrackerTest(unittest.TestCase):
         self.assertEqual(1, self.tracker.github_message_count)
         self.assertEqual(2, self.tracker.new_issue_count)
         self.assertEqual([(17, ['Non MatchingError'])],
-                         list(self.tracker.errors('DummyFile')))
-
-    def test_one_unique_issue__same_line(self):
-        comment = Struct(body='_[farcy \n* MatchingError', path='DummyFile',
-                         position=16)
-        self.tracker.from_github_comments([comment])
-        self.tracker.track('MatchingError', 'DummyFile', 16)
-        self.tracker.track('Non MatchingError', 'DummyFile', 16)
-
-        self.assertEqual(1, self.tracker.github_message_count)
-        self.assertEqual(2, self.tracker.new_issue_count)
-        self.assertEqual([(16, ['Non MatchingError'])],
                          list(self.tracker.errors('DummyFile')))
 
     def test_one_unique_issue__same_line(self):
