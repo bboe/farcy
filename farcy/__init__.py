@@ -7,7 +7,7 @@ Usage: farcy.py [-D | --logging=LEVEL] [--comments-per-pr=LIMIT]
 Options:
 
   -s ID, --start=ID  The event id to start handling events from.
-  -p ID, --pr=ID   Process only the provided pull request(s).
+  -p ID, --pr=ID     Process only the provided pull request(s).
   -D, --debug        Enable debugging mode. Enables all logging output
                      and prevents the posting of comments.
   --logging=LEVEL    Specify the log level* to output.
