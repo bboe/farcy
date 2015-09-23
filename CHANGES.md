@@ -1,3 +1,8 @@
+# Unreleased
+* __[CHANGE]__ Drop python 3.2 support (not easily supported by coveralls and
+  is minimally used:
+  https://github.com/praw-dev/praw/pull/532#issuecomment-142110977).
+
 # Farcy 1.0 (September 23, 2015)
 
 * __[FEATURE]__ Automatically process new and updated pull requests from github
