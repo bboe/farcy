@@ -242,8 +242,7 @@ class Rubocop(ExtHandler):
 
 
 class SCSSLint(ExtHandler):
-
-    """Provides feedback for css and scss files using scss-lint"""
+    """Provides feedback for css and scss files using scss-lint."""
 
     BINARY = 'scss-lint'
     BINARY_VERSION = '0.43.2'
@@ -258,7 +257,8 @@ class SCSSLint(ExtHandler):
         data = json.loads(self.execute(command + [filename]))
 
         retval = defaultdict(list)
-        if not data.values(): return retval
+        if not data.values():
+            return retval
         for offense in data.values()[0]:
             retval[offense['line']].append(
                 '{linter}: {reason}'.format(**offense)
@@ -267,6 +267,9 @@ class SCSSLint(ExtHandler):
         return retval
 
     def version_callback(self, version):
-        """Return a parsed version string for the binary version.
-           This returns just the semantic versioned portion of the version string"""
+        """
+        Return a parsed version string for the binary version.
+
+        This returns just the semantic versioned portion of the version string.
+        """
         return version.split()[1]
