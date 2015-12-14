@@ -22,4 +22,7 @@ RUN npm install -g eslint babel-eslint eslint-plugin-react eslint-config-airbnb
 # Rubocop
 RUN gem install rubocop
 
+# SCSS-Lint
+RUN gem install scss_lint
+
 CMD ["farcy"]

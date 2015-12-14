@@ -239,3 +239,34 @@ class Rubocop(ExtHandler):
             retval[offense['location']['line']].append(
                 '{cop_name}: {message}'.format(**offense))
         return retval
+
+
+class SCSSLint(ExtHandler):
+
+    """Provides feedback for css and scss files using scss-lint"""
+
+    BINARY = 'scss-lint'
+    BINARY_VERSION = '0.43.2'
+    EXTENSIONS = ['.css', '.scss']
+
+    def _process(self, filename):
+        command = [self.BINARY, '-f', 'JSON']
+        config_path = self.config_file_path
+        if config_path:
+            command += ['-c', config_path]
+
+        data = json.loads(self.execute(command + [filename]))
+
+        retval = defaultdict(list)
+        if data.values() == []: return retval
+        for offense in data.values()[0]:
+            retval[offense['line']].append(
+                '{linter}: {reason}'.format(**offense)
+            )
+
+        return retval
+
+    def version_callback(self, version):
+        """Return a parsed version string for the binary version.
+           This returns just the semantic versioned portion of the version string"""
+        return version.split()[1]

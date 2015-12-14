@@ -5,7 +5,6 @@ import farcy.handlers
 import os
 import unittest
 
-
 class ExtHandlerTest(unittest.TestCase):
 
     """Tests common Farcy handler extension methods."""
@@ -174,4 +173,29 @@ class RubocopTest(FarcyTest):
         self.assertEqual({3: [('Style/DefWithParentheses: Omit the parentheses'
                                ' in defs when the method doesn\'t accept any '
                                'arguments.')]},
+                         errors)
+
+
+class SCSSLintTest(FarcyTest):
+
+    """Tests for the SCSSLint Handler."""
+
+    def setUp(self):
+        """Set up helpers used for each test case."""
+        self.linter = farcy.handlers.SCSSLint()
+        self.linter.config_file_path = self.config(self.linter)
+
+    def test_perfect_file(self):
+        """There should be no issues."""
+        errors = self.linter.process(self.path('no_issue.scss'))
+        self.assertEqual({}, errors)
+
+    def test_single_error(self):
+        """A single error should be returned.
+
+           Uses config to disable 1 issue.
+        """
+        errors = self.linter.process(self.path('single_issue.scss'))
+        self.assertEqual({1: [('SelectorFormat: Selector `test_class` '
+                               'should be written in lowercase with hyphens')]},
                          errors)
