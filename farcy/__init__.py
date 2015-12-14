@@ -63,7 +63,6 @@ def no_handler_debug_factory(duration=3600):
 
 
 class Farcy(object):
-
     """A bot to automate some code-review processes on GitHub pull requests."""
 
     EVENTS = {'PullRequestEvent', 'PushEvent'}

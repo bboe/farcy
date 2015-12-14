@@ -2,7 +2,6 @@
 
 
 class FarcyException(Exception):
-
     """Farcy root exception class."""
 
     def __str__(self):
@@ -12,10 +11,8 @@ class FarcyException(Exception):
 
 
 class HandlerException(FarcyException):
-
     """Farcy handler primary exception."""
 
 
 class HandlerNotReady(HandlerException):
-
     """Exception indicating that a handler is not ready for use."""
