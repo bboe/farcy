@@ -17,6 +17,7 @@ install:
   - pip install coveralls flake8 pep257
   - npm install eslint
   - gem install rubocop
+  - gem install scss_lint
 script:
   - flake8 farcy
   - pep257 farcy

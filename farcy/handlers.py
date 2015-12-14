@@ -258,7 +258,7 @@ class SCSSLint(ExtHandler):
         data = json.loads(self.execute(command + [filename]))
 
         retval = defaultdict(list)
-        if data.values() == []: return retval
+        if not data.values(): return retval
         for offense in data.values()[0]:
             retval[offense['line']].append(
                 '{linter}: {reason}'.format(**offense)
