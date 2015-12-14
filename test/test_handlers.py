@@ -5,6 +5,7 @@ import farcy.handlers
 import os
 import unittest
 
+
 class ExtHandlerTest(unittest.TestCase):
 
     """Tests common Farcy handler extension methods."""
