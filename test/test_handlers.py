@@ -146,8 +146,8 @@ class Pep257Test(FarcyTest):
     def test_single_error(self):
         """A single error should be returned."""
         errors = self.process(self.path('single_issue.py'))
-        self.assertEqual({3: [('D203: 1 blank line required before class '
-                               'docstring (found 0)')]},
+        self.assertEqual({3: [('D211: No blank lines allowed before class '
+                               'docstring (found 1)')]},
                          errors)
 
 
