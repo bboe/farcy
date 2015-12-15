@@ -15,7 +15,6 @@ from .helpers import get_session, parse_bool, parse_set
 
 
 class Config(object):
-
     """Holds configuration for Farcy."""
 
     ATTRIBUTES = {'comment_group_threshold', 'debug', 'exclude_paths',
@@ -124,7 +123,6 @@ class Config(object):
 
 
 class ErrorMessage(object):
-
     """An error message keeps track the lines a single error appears on."""
 
     def __init__(self, message, group_threshold):
@@ -185,7 +183,6 @@ class ErrorMessage(object):
 
 
 class ErrorTracker(object):
-
     """Track ErrorMessages across multiple files."""
 
     FARCY_PREFIX = FARCY_COMMENT_START.split('v')[0]
@@ -253,7 +250,6 @@ class ErrorTracker(object):
 
 
 class UTC(tzinfo):
-
     """Provides a simple UTC timezone class.
 
     Source: http://docs.python.org/release/2.4.2/lib/datetime-tzinfo.html

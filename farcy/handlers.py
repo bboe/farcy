@@ -20,7 +20,6 @@ except ImportError:
 
 
 class ExtHandler(object):
-
     """An abstract class that provides the file handler interface.
 
     Subclasses must define the extension(s) that the class provides feedback
@@ -147,7 +146,6 @@ class ExtHandler(object):
 
 
 class ESLint(ExtHandler):
-
     """Provides feedback for JavaScript files using ESLint."""
 
     BINARY = 'eslint'
@@ -173,7 +171,6 @@ class ESLint(ExtHandler):
 
 
 class Flake8(ExtHandler):
-
     """Provides feedback for python files using flake8."""
 
     BINARY = 'flake8'
@@ -192,7 +189,6 @@ class Flake8(ExtHandler):
 
 
 class JSXHint(ExtHandler):
-
     """Provides feedback for JS/JSX files using jsxhint."""
 
     BINARY = 'jsxhint'
@@ -213,7 +209,6 @@ class JSXHint(ExtHandler):
 
 
 class Pep257(ExtHandler):
-
     """Provides feedback for python files using pep257."""
 
     BINARY = 'pep257'
@@ -226,7 +221,6 @@ class Pep257(ExtHandler):
 
 
 class Rubocop(ExtHandler):
-
     """Provides feedback for ruby files using rubocop."""
 
     BINARY = 'rubocop'

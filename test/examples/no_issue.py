@@ -2,5 +2,4 @@
 
 
 class SomeClass(object):
-
     """Class docstring."""
