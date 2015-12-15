@@ -19,10 +19,7 @@ RUN mkdir /root/.config && \
 # ESLint
 RUN npm install -g eslint babel-eslint eslint-plugin-react eslint-config-airbnb
 
-# Rubocop
-RUN gem install rubocop
-
-# SCSS-Lint
-RUN gem install scss_lint
+# Rubocop and SCSS-Lint
+RUN gem install rubocop scss_lint
 
 CMD ["farcy"]
