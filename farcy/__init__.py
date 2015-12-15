@@ -220,7 +220,7 @@ class Farcy(object):
         self._ext_to_handler = defaultdict(list)
         active = []
         for handler in (handlers.ESLint, handlers.Flake8, handlers.Pep257,
-                        handlers.Rubocop):
+                        handlers.Rubocop, handlers.SCSSLint):
             try:
                 handler_inst = handler()
             except HandlerException:
