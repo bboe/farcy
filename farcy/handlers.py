@@ -259,7 +259,7 @@ class SCSSLint(ExtHandler):
         retval = defaultdict(list)
         if not data.values():
             return retval
-        for offense in data.values()[0]:
+        for offense in next(iter(data.values())):
             retval[offense['line']].append(
                 '{linter}: {reason}'.format(**offense)
             )
