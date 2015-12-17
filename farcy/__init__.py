@@ -33,6 +33,7 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from docopt import docopt
 from fnmatch import fnmatch
+from github3.exceptions import ServerError
 from random import choice
 from requests import ConnectionError
 from shutil import rmtree
@@ -255,8 +256,8 @@ class Farcy(object):
             itr = self.repo.events(etag=etag)
             try:
                 newest_id = self._event_loop(itr, events)
-            except ConnectionError as exc:
-                self.log.warning('ConnectionError {0}'.format(exc))
+            except (ConnectionError, ServerError) as exc:
+                self.log.warning('Error in event loop: {0}'.format(exc))
                 sleep_time = 1
                 continue
 
