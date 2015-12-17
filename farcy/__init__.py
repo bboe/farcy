@@ -257,7 +257,8 @@ class Farcy(object):
             try:
                 newest_id = self._event_loop(itr, events)
             except (ConnectionError, ServerError) as exc:
-                self.log.warning('Error in event loop: {0}'.format(exc))
+                self.log.error('Error in event generation loop: {0}'
+                               .format(exc))
                 sleep_time = 1
                 continue
 
@@ -367,7 +368,19 @@ class Farcy(object):
 
         self.log.info('Monitoring {0}'.format(self.repo.html_url))
         for event in self.events():
-            getattr(self, event.type)(event)
+            attempts = 3
+            while attempts > 0:
+                if attempts < 3:  # Sleep only on subsequent attempts.
+                    time.sleep(4 ** (3 - attempts))
+                try:
+                    getattr(self, event.type)(event)
+                    attempts = 0
+                except Exception as exc:
+                    attempts -= 1
+                    self.log.error('Error with event ({0}): {1}'
+                                   .format(event, exc))
+                    self.log.info('Retrying {0} more time(s).'
+                                  .format(attempts))
 
 
 def main():
