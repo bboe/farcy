@@ -1,5 +1,7 @@
 # Unreleased
 * __[BUGIFX]__ Handle github3.exceptions.ServerErrors in the event loop.
+* __[BUGFIX]__ Add catch-all for exceptions that could occur when handling a
+  PullRequest or Push event.
 * __[CHANGE]__ Drop python 3.2 support (not easily supported by coveralls and
   is minimally used:
   https://github.com/praw-dev/praw/pull/532#issuecomment-142110977).
