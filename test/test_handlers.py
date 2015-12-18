@@ -1,9 +1,10 @@
 """Farcy handlers test file."""
 
 from __future__ import print_function
-import farcy.handlers
 import os
 import unittest
+from farcy.exceptions import HandlerException
+import farcy.handlers
 
 
 class ExtHandlerTest(unittest.TestCase):
@@ -178,7 +179,6 @@ class RubocopTest(FarcyTest):
 
 
 class SCSSLintTest(FarcyTest):
-
     """Tests for the SCSSLint Handler."""
 
     def setUp(self):
@@ -200,3 +200,13 @@ class SCSSLintTest(FarcyTest):
         self.assertEqual({1: [('SelectorFormat: Selector `test_class` '
                                'should be written in lowercase with hyphens')]},
                          errors)
+
+    def test_linting_exception(self):
+        """We should raise an error with useful information if linting fails."""
+        try:
+            self.linter.process(self.path('linting_exception.scss'))
+        except HandlerException as e:
+            self.assertEqual('Error occurred during linting: Syntax Error: '
+                             'Invalid CSS after ".broken-class '
+                             '{": expected "}", was "" (line 2, column 1)',
+                             e.message)

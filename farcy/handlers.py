@@ -260,6 +260,12 @@ class SCSSLint(ExtHandler):
         if not data.values():
             return retval
         for offense in next(iter(data.values())):
+            if 'linter' not in offense:
+                exception_message = (
+                    "Error occurred during linting: {reason} "
+                    "(line {line}, column {column})"
+                ).format(**offense)
+                raise HandlerException(exception_message)
             retval[offense['line']].append(
                 '{linter}: {reason}'.format(**offense)
             )
