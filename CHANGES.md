@@ -1,4 +1,5 @@
 # Unreleased
+* __[FEATURE]__ Provide an SCSS-Lint handler for css and scss .css and .scss files (well tested).
 * __[BUGIFX]__ Handle github3.exceptions.ServerErrors in the event loop.
 * __[BUGFIX]__ Add catch-all for exceptions that could occur when handling a
   PullRequest or Push event.
