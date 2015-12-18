@@ -205,8 +205,8 @@ class SCSSLintTest(FarcyTest):
         """We should raise an error with useful information if linting fails."""
         try:
             self.linter.process(self.path('linting_exception.scss'))
-        except HandlerException as e:
+        except HandlerException as exc:
             self.assertEqual('Error occurred during linting: Syntax Error: '
                              'Invalid CSS after ".broken-class '
                              '{": expected "}", was "" (line 2, column 1)',
-                             e.message)
+                             '{0}'.format(exc))
