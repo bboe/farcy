@@ -33,7 +33,7 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from docopt import docopt
 from fnmatch import fnmatch
-from github3.exceptions import ServerError
+from github3.exceptions import ServerError, UnprocessableEntity
 from random import choice
 from requests import ConnectionError
 from shutil import rmtree
@@ -193,6 +193,7 @@ class Farcy(object):
             for message in messages:
                 data['errors'].track(message, pfile.filename, added[line])
 
+        exception_occurred = False
         for line, violations in data['errors'].errors(pfile.filename):
             if data['comments'] >= self.config.pr_issue_report_limit:
                 data['stats']['skipped_issues'] += 1
@@ -207,14 +208,21 @@ class Farcy(object):
                 msg = '\n'.join(
                     [FARCY_COMMENT_START] + ['* {}'.format(violation)
                                              for violation in violations])
-                (pr.create_review_comment(msg, sha, pfile.filename, line)
-                 .html_url['href'])
+                try:
+                    (pr.create_review_comment(msg, sha, pfile.filename, line)
+                     .html_url['href'])
+                except UnprocessableEntity as exc:
+                    self.log.exception('Failure with create_review_comment for'
+                                       ' {0} on line {1}'
+                                       .format(pfile.filename, line))
+                    self.log.exception(str(exc))
+                    exception_occurred = True
 
             # `data['comments']` is misleading when in debug mode.  What
             # it really means is the number of comments that would be on
             # on the pr (existing + new) when not in debug mode.
             data['comments'] += 1
-        return False
+        return exception_occurred
 
     def _load_handlers(self):
         from . import handlers
