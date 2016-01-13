@@ -47,8 +47,8 @@ class Config(object):
 
     def __repr__(self):
         """String representation of the config."""
-        keys = sorted(x for x in self.__dict__ if not x.startswith('_')
-                      and x != 'repository')
+        keys = sorted(x for x in self.__dict__ if not x.startswith('_') and
+                      x != 'repository')
         arg_fmt = ', '.join(['{0}={1!r}'.format(key, getattr(self, key))
                              for key in keys])
         return 'Config({0!r}, {1})'.format(self.repository, arg_fmt)
@@ -256,6 +256,14 @@ class UTC(tzinfo):
 
     """
 
-    dst = lambda x, y: timedelta(0)
-    tzname = lambda x, y: 'UTC'
-    utcoffset = lambda x, y: timedelta(0)
+    def dst(self, dt):
+        """Return the daylight saving time adjustment."""
+        return timedelta(0)
+
+    def tzname(self, dt):
+        """Name of the timezone."""
+        return 'UTC'
+
+    def utcoffset(self, dt):
+        """Offset from UTC time."""
+        return timedelta(0)

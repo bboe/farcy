@@ -303,8 +303,8 @@ class Farcy(object):
 
     def handle_pr(self, pr, force=False):
         """Provide code review on pull request."""
-        failure = not force and (self._fail_whitelist(pr)
-                                 or self._fail_closed(pr))
+        failure = not force and (self._fail_whitelist(pr) or
+                                 self._fail_closed(pr))
         if failure:
             self.log.debug(failure)
             return
