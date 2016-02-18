@@ -67,7 +67,7 @@ Configuration files for the various linters can be placed in
 ``~/.config/farcy/handler_NAME.conf``. Replace ``NAME`` with the name of the handler.
 
 
-Optional external pacakges needed for various file types
+Optional external packages needed for various file types
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Python**: ``farcy`` will take advantage of two tools for python files:
