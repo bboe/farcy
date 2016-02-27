@@ -2,7 +2,6 @@
 
 
 class Struct(object):
-
     """A dynamic class with attributes based on the input dictionary."""
 
     def __init__(self, iterable=None, **attrs):
