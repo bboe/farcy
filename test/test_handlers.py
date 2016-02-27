@@ -110,6 +110,12 @@ class ESLintTest(FarcyTest):
         self.assertEqual({3: ['Unexpected console statement. (no-console)']},
                          errors)
 
+    def test_invalid_syntax(self):
+        """Test an error is returned for correct line when syntax error."""
+        errors = self.linter.process(self.path('invalid_syntax.js'))
+        self.assertEqual({3: ['Parsing error: Unexpected token name']},
+                         errors)
+
 
 class Flake8Test(FarcyTest):
 
