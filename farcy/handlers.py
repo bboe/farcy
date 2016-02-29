@@ -158,11 +158,14 @@ class ESLint(ExtHandler):
         if config_path:
             command += ['--config', config_path]
 
-        data = json.loads(self.execute(command + [filename]))
+        data = json.loads(self.execute(command + [filename]))[0]
         retval = defaultdict(list)
-        for offense in data[0]['messages']:
-            retval[offense['line']].append(
-                '{message} ({ruleId})'.format(**offense))
+
+        for offense in data['messages']:
+            message = offense['message']
+            if offense.get('ruleId'):
+                message += ' ({})'.format(offense['ruleId'])
+            retval[offense['line']].append(message)
         return retval
 
     def version_callback(self, version):
