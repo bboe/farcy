@@ -20,7 +20,7 @@ install:
   - npm install eslint
   - gem install rubocop scss_lint
 script:
-  - flake8 farcy
-  - pep257 farcy
+  - flake8
+  - pep257
   - coverage run --source=farcy setup.py test
 after_success: coveralls

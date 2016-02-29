@@ -197,16 +197,16 @@ class SCSSLintTest(FarcyTest):
            Uses config to disable 1 issue.
         """
         errors = self.linter.process(self.path('single_issue.scss'))
-        self.assertEqual({1: [('SelectorFormat: Selector `test_class` '
-                               'should be written in lowercase with hyphens')]},
+        self.assertEqual({1: [('SelectorFormat: Selector `test_class` should '
+                               'be written in lowercase with hyphens')]},
                          errors)
 
     def test_linting_exception(self):
-        """We should raise an error with useful information if linting fails."""
+        """Test an error is raised with useful information if linting fails."""
         try:
             self.linter.process(self.path('linting_exception.scss'))
         except HandlerException as exc:
             self.assertEqual('Error occurred during linting: Syntax Error: '
                              'Invalid CSS after ".broken-class '
                              '{": expected "}", was "" (line 2, column 1)',
-                             '{0}'.format(exc))
+                             str(exc))
