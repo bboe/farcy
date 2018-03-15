@@ -227,7 +227,7 @@ class Rubocop(ExtHandler):
     """Provides feedback for ruby files using rubocop."""
 
     BINARY = 'rubocop'
-    BINARY_VERSION = '0.27'
+    BINARY_VERSION = '0.50'
     EXTENSIONS = ['.rb']
 
     def _process(self, filename):
@@ -239,8 +239,7 @@ class Rubocop(ExtHandler):
         data = json.loads(self.execute(command + [filename]))
         retval = defaultdict(list)
         for offense in data.get('files', [{}])[0].get('offenses', []):
-            retval[offense['location']['line']].append(
-                '{cop_name}: {message}'.format(**offense))
+            retval[offense['location']['line']].append(offense['message'])
         return retval
 
 

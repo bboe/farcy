@@ -280,6 +280,15 @@ class FarcyHandlePrTest(FarcyBaseTest):
                          call('PR#180 STATUS: approves! Dummy Approval!'))
         assert_status(farcy)
 
+    def test_handle_pr__user_blacklisted(self):
+        pr = Struct(number=180, user=Struct(login='Dummy'))
+        farcy = self._farcy_instance()
+        farcy.config.exclude_users = ['dummy']
+        with patch.object(self.logger, 'debug') as mock_debug:
+            farcy.handle_pr(pr)
+            mock_debug.assert_called_with(
+                'Skipping PR#180: Dummy is not allowed')
+
     def test_handle_pr__user_not_whitelisted(self):
         pr = Struct(number=180, user=Struct(login='Dummy'))
         farcy = self._farcy_instance()
@@ -287,7 +296,7 @@ class FarcyHandlePrTest(FarcyBaseTest):
         with patch.object(self.logger, 'debug') as mock_debug:
             farcy.handle_pr(pr)
             mock_debug.assert_called_with(
-                'Skipping PR#180: Dummy is not whitelisted')
+                'Skipping PR#180: Dummy is not allowed')
 
 
 class FarcyEventCallbackTest(FarcyBaseTest):

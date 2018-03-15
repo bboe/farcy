@@ -84,7 +84,7 @@ class ConfigTest(unittest.TestCase):
     def test_config__repr(self):
         config = self._config_instance(None, repo='a/b')
         repr_str = ("Config('a/b', comment_group_threshold=3, debug=False, "
-                    "exclude_paths=None, "
+                    "exclude_paths=None, exclude_users=None, "
                     "limit_users=None, log_level='ERROR', "
                     "pr_issue_report_limit=128, pull_requests=None, "
                     "start_event=None)")
@@ -112,6 +112,16 @@ class ConfigTest(unittest.TestCase):
         with self.assertRaises(exceptions.FarcyException):
             config.repository = 'invalid_repo'
 
+    def test_raise_if_setting_blacklist_with_whitelist_already_set(self):
+        config = self._config_instance(None, limit_users=['a'], repo='a/b')
+        with self.assertRaises(exceptions.FarcyException):
+            config.exclude_users = ['b']
+
+    def test_raise_if_setting_whitelist_with_blacklist_already_set(self):
+        config = self._config_instance(None, exclude_users=['a'], repo='a/b')
+        with self.assertRaises(exceptions.FarcyException):
+            config.limit_users = ['b']
+
     def test_setting_repo(self):
         config = self._config_instance(None, repo='a/b')
         self.assertEqual('a/b', config.repository)
@@ -133,15 +143,29 @@ class ConfigTest(unittest.TestCase):
         for attr, value in data.items():
             self.assertEqual(value, getattr(config, attr))
 
-    def test_user_whitelisted_passes_if_not_set(self):
+    def test_user_allowed_with_no_lists_set(self):
         config = self._config_instance(None, repo='a/b')
-        self.assertTrue(config.user_whitelisted('balloob'))
+        self.assertTrue(config.user_allowed('balloob'))
 
-    def test_user_whitelisted_works_if_set(self):
+    def test_user_allowed_when_not_blacklisted(self):
+        config = self._config_instance(None, exclude_users=['a'], repo='a/b')
+        self.assertTrue(config.user_allowed('balloob'))
+
+    def test_user_allowed_when_whitelisted(self):
         config = self._config_instance(None, repo='a/b')
         config.limit_users = ['bboe', 'balloob']
-        self.assertTrue(config.user_whitelisted('balloob'))
-        self.assertFalse(config.user_whitelisted('appfolio'))
+        self.assertTrue(config.user_allowed('balloob'))
+        self.assertFalse(config.user_allowed('appfolio'))
+
+    def test_user_not_allowed_when_blacklisted(self):
+        config = self._config_instance(None, exclude_users=['balloob'],
+                                       repo='a/b')
+        self.assertFalse(config.user_allowed('balloob'))
+
+    def test_user_not_allowed_when_not_whitelisted(self):
+        config = self._config_instance(None, limit_users=['a'],
+                                       repo='a/b')
+        self.assertFalse(config.user_allowed('balloob'))
 
 
 class ErrorMessageTest(unittest.TestCase):
