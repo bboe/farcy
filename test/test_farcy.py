@@ -51,17 +51,14 @@ class FarcyBaseTest(unittest.TestCase):
         logging.disable(logging.CRITICAL)
         self.logger = logging.getLogger('farcy')
 
-    @patch('farcy.UpdateChecker')
     @patch('farcy.objects.get_session')
-    def _farcy_instance(self, mock_get_session, mock_update_checker,
-                        config=None):
+    def _farcy_instance(self, mock_get_session, config=None):
         if config is None:
             config = Config(None)
         if config.repository is None:
             config.repository = 'dummy/dummy'
         farcy = Farcy(config)
         self.assertTrue(mock_get_session.called)
-        self.assertTrue(mock_update_checker.called)
         return farcy
 
 

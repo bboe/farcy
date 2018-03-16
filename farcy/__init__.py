@@ -39,13 +39,12 @@ from requests import ConnectionError
 from shutil import rmtree
 from tempfile import mkdtemp
 from timeit import default_timer
-from update_checker import UpdateChecker
 import logging
 import os
 import sys
 import time
-from .const import (__version__, APPROVAL_PHRASES, FARCY_COMMENT_START,
-                    STATUS_CONTEXT, VERSION_STR)
+from .const import (APPROVAL_PHRASES, FARCY_COMMENT_START, STATUS_CONTEXT,
+                    VERSION_STR)
 from .exceptions import FarcyException, HandlerException
 from .helpers import added_lines, plural
 from .objects import Config, ErrorTracker, UTC
@@ -67,7 +66,6 @@ class Farcy(object):
     """A bot to automate some code-review processes on GitHub pull requests."""
 
     EVENTS = {'PullRequestEvent', 'PushEvent'}
-    _update_checked = False
 
     def __init__(self, config):
         """Initialize an instance of Farcy that monitors owner/repository."""
@@ -102,13 +100,6 @@ class Farcy(object):
         self.open_prs = {}
         for pr in self.repo.pull_requests(state='open'):
             self.open_prs[pr.head.ref] = pr
-
-        # Check for farcy package updates
-        if not self._update_checked:
-            result = UpdateChecker().check(__name__, __version__)
-            if result:
-                self.log.info(result)
-            self._update_checked = True
 
         self.running = False
 

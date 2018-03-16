@@ -9,7 +9,7 @@ sudo: false
 cache: pip
 install:
   - pip install coveralls flake8 pep257
-  - npm install eslint
+  - npm install -g eslint
   - gem install rubocop scss_lint
 script:
   - flake8
