@@ -154,18 +154,18 @@ class Farcy(object):
                 events.insert(0, event)
         return newest_id
 
+    def _fail_allowed(self, pr):
+        if self.config.user_allowed(pr.user.login):
+            return None
+        return ('Skipping PR#{0}: {1} is not allowed'
+                .format(pr.number, pr.user.login))
+
     def _fail_closed(self, pr):
         pr.refresh()
         if pr.state == 'open':
             return None
         return ('Skipping PR#{0}: invalid state ({1})'
                 .format(pr.number, pr.state))
-
-    def _fail_whitelist(self, pr):
-        if self.config.user_whitelisted(pr.user.login):
-            return None
-        return ('Skipping PR#{0}: {1} is not whitelisted'
-                .format(pr.number, pr.user.login))
 
     def _get_state(self, issues, exception):
         if exception:
@@ -303,7 +303,7 @@ class Farcy(object):
 
     def handle_pr(self, pr, force=False):
         """Provide code review on pull request."""
-        failure = not force and (self._fail_whitelist(pr) or
+        failure = not force and (self._fail_allowed(pr) or
                                  self._fail_closed(pr))
         if failure:
             self.log.debug(failure)

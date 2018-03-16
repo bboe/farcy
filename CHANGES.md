@@ -1,3 +1,6 @@
+# Unreleased
+* __[FEATURE]__ Support user blacklists.
+
 # Farcy 1.1 (January 13, 2015)
 * __[FEATURE]__ Provide an SCSS-Lint handler for css and scss .css and .scss files.
 * __[BUGIFX]__ Handle github3.exceptions.ServerErrors in the event loop.

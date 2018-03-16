@@ -50,18 +50,20 @@ with specific settings. The ``DEFAULT`` section can take an optional ``repositor
 .. code-block::
 
     [DEFAULT]
-    repository:appfolio/farcy
     log_level: INFO
-    
+    repository:appfolio/farcy
+
     [appfolio/farcy]
     debug: true
     exclude_paths: npm_modules, vendor, db
     limit_users: balloob, bboe
     pr_issue_report_limit: 32
-    
+
     [appfolio/gemsurance]
-    pr_issue_report_limit: 10
+    exclude_users: bboe
     log_level: WARNING
+    pr_issue_report_limit: 10
+
 
 Configuration files for the various linters can be placed in
 ``~/.config/farcy/handler_NAME.conf``. Replace ``NAME`` with the name of the handler.

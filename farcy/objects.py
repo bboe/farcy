@@ -18,8 +18,8 @@ class Config(object):
     """Holds configuration for Farcy."""
 
     ATTRIBUTES = {'comment_group_threshold', 'debug', 'exclude_paths',
-                  'limit_users', 'log_level', 'pr_issue_report_limit',
-                  'pull_requests', 'start_event'}
+                  'exclude_users', 'limit_users', 'log_level',
+                  'pr_issue_report_limit', 'pull_requests', 'start_event'}
     INT_ATTRS = {'comment_group_threshold', 'pr_issue_report_limit',
                  'start_event'}
     LOG_LEVELS = {'CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'NOTSET'}
@@ -66,7 +66,7 @@ class Config(object):
         elif attr in ('exclude_paths', 'pull_requests'):
             if value is not None:
                 value = parse_set(value)
-        elif attr == 'limit_users':
+        elif attr in ('exclude_users', 'limit_users'):
             if value:
                 value = parse_set(value, normalize=True)
         elif attr == 'log_level' and self.debug:
@@ -83,6 +83,10 @@ class Config(object):
             if value is not None:
                 value = int(value)
         super(Config, self).__setattr__(attr, value)
+        if getattr(self, 'exclude_users', None) and \
+           getattr(self, 'limit_users', None):
+            raise FarcyException('Either exclude_users or limit_users '
+                                 'can be provided, but not both.')
 
     def load_config_file(self):
         """Load value overrides from configuration file."""
@@ -111,15 +115,20 @@ class Config(object):
         self.comment_group_threshold = 3
         self.debug = False
         self.exclude_paths = None
+        self.exclude_users = None
         self.limit_users = None
         self.log_level = 'ERROR'
         self.pr_issue_report_limit = 128
         self.pull_requests = None
         self.start_event = None
 
-    def user_whitelisted(self, user):
-        """Return if user is whitelisted."""
-        return self.limit_users is None or user.lower() in self.limit_users
+    def user_allowed(self, user):
+        """Return if user is allowed."""
+        if self.exclude_users:
+            return user.lower() not in self.exclude_users
+        elif self.limit_users:
+            return user.lower() in self.limit_users
+        return True
 
 
 class ErrorMessage(object):
