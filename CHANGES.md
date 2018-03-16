@@ -1,3 +1,7 @@
+# Farcy 1.2.1 (March 15, 2018)
+* __[BUGFIX]__ Fix imports.
+
+
 # Farcy 1.2 (March 15, 2018)
 * __[FEATURE]__ Support user blacklists.
 

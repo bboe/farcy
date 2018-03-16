@@ -2,14 +2,12 @@
 import os
 import re
 
-__version__ = '1.2'
-
-VERSION_STR = 'farcy v{0}'.format(__version__)
+__version__ = '1.2.1'
 
 CONFIG_DIR = os.path.expanduser('~/.config/farcy')
 
-MD_VERSION_STR = ('[{0}](https://github.com/appfolio/farcy)'
-                  .format(VERSION_STR))
+MD_VERSION_STR = ('[farcy v{0}](https://github.com/appfolio/farcy)'
+                  .format(__version__))
 
 FARCY_COMMENT_START = '_{0}_'.format(MD_VERSION_STR)
 

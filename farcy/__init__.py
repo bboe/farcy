@@ -43,8 +43,8 @@ import logging
 import os
 import sys
 import time
-from .const import (APPROVAL_PHRASES, FARCY_COMMENT_START, STATUS_CONTEXT,
-                    VERSION_STR)
+from .const import (__version__, APPROVAL_PHRASES, FARCY_COMMENT_START,
+                    STATUS_CONTEXT)
 from .exceptions import FarcyException, HandlerException
 from .helpers import added_lines, plural
 from .objects import Config, ErrorTracker, UTC
@@ -384,7 +384,7 @@ class Farcy(object):
 
 def main():
     """Provide an entry point into Farcy."""
-    args = docopt(__doc__, version=VERSION_STR)
+    args = docopt(__doc__, version='farcy v{0}'.format(__version__))
     config = Config(args['REPOSITORY'], debug=args['--debug'],
                     exclude_paths=args['--exclude-path'],
                     limit_users=args['--limit-user'],
