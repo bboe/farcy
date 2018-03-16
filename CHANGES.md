@@ -1,4 +1,4 @@
-# Unreleased
+# Farcy 1.2 (March 15, 2018)
 * __[FEATURE]__ Support user blacklists.
 
 # Farcy 1.1 (January 13, 2015)

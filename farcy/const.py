@@ -2,7 +2,7 @@
 import os
 import re
 
-__version__ = '1.1'
+__version__ = '1.2'
 
 VERSION_STR = 'farcy v{0}'.format(__version__)
 
