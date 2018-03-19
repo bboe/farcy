@@ -200,8 +200,8 @@ class Farcy(object):
                     [FARCY_COMMENT_START] + ['* {}'.format(violation)
                                              for violation in violations])
                 try:
-                    (pr.create_review_comment(msg, sha, pfile.filename, line)
-                     .html_url['href'])
+                    pr.create_review_comment(msg, sha, pfile.filename,
+                                             line).html_url
                 except UnprocessableEntity as exc:
                     self.log.exception('Failure with create_review_comment for'
                                        ' {0} on line {1}'
