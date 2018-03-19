@@ -1,3 +1,7 @@
+# Farcy 1.2.3 (March 19, 2018)
+* __[BUGFIX]__ Fix issue with github3.py version 1.0.
+
+
 # Farcy 1.2.1 (March 15, 2018)
 * __[BUGFIX]__ Fix imports.
 
