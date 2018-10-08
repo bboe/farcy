@@ -1,5 +1,6 @@
-# Unreleased
+# Farcy 1.3.0 (October 8, 2018)
 * __[FEATURE]__ Ignore PRs which contain "farcy: ignore" in the PR description.
+
 
 # Farcy 1.2.3 (March 19, 2018)
 * __[BUGFIX]__ Fix issue with github3.py version 1.0.
@@ -12,6 +13,7 @@
 # Farcy 1.2 (March 15, 2018)
 * __[FEATURE]__ Support user blacklists.
 
+
 # Farcy 1.1 (January 13, 2015)
 * __[FEATURE]__ Provide an SCSS-Lint handler for css and scss .css and .scss files.
 * __[BUGIFX]__ Handle github3.exceptions.ServerErrors in the event loop.
@@ -20,6 +22,7 @@
 * __[CHANGE]__ Drop python 3.2 support (not easily supported by coveralls and
   is minimally used:
   https://github.com/praw-dev/praw/pull/532#issuecomment-142110977).
+
 
 # Farcy 1.0 (September 23, 2015)
 
