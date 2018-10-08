@@ -158,6 +158,11 @@ class Farcy(object):
         return ('Skipping PR#{0}: invalid state ({1})'
                 .format(pr.number, pr.state))
 
+    def _fail_ignore(self, pr):
+        if 'farcy: ignore' not in pr.body.lower():
+            return None
+        return 'Skipping PR#{0}. Explicit ignore requested.'.format(pr.number)
+
     def _get_state(self, issues, exception):
         if exception:
             return 'error', 'encountered an exception in handler. Check log.'
@@ -295,7 +300,8 @@ class Farcy(object):
     def handle_pr(self, pr, force=False):
         """Provide code review on pull request."""
         failure = not force and (self._fail_allowed(pr) or
-                                 self._fail_closed(pr))
+                                 self._fail_closed(pr) or
+                                 self._fail_ignore(pr))
         if failure:
             self.log.debug(failure)
             return

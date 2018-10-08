@@ -1,3 +1,6 @@
+# Unreleased
+* __[FEATURE]__ Ignore PRs which contain "farcy: ignore" in the PR description.
+
 # Farcy 1.2.3 (March 19, 2018)
 * __[BUGFIX]__ Fix issue with github3.py version 1.0.
 
