@@ -341,20 +341,21 @@ class Farcy(object):
         """Check commits on new pull requests."""
         pr = event.payload['pull_request']
         action = event.payload['action']
+        branch = pr.head['ref']
         self.log.debug('PullRequest #{num} {action} on branch {branch}'
-                       .format(action=action, branch=pr.head.ref,
+                       .format(action=action, branch=branch,
                                num=pr.number))
         if action == 'closed':
-            if pr.head.ref in self.open_prs:
-                del self.open_prs[pr.head.ref]
+            if branch in self.open_prs:
+                del self.open_prs[branch]
             else:
                 self.log.warning('open_prs did not contain {0}'
-                                 .format(pr.head.ref))
+                                 .format(branch))
         elif action == 'opened':
-            self.open_prs[pr.head.ref] = pr
+            self.open_prs[branch] = pr
             self.handle_pr(pr)
         elif action == 'reopened':
-            self.open_prs[pr.head.ref] = pr
+            self.open_prs[branch] = pr
 
     def PushEvent(self, event):
         """Check push commits only to open pull requests."""

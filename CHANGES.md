@@ -1,3 +1,6 @@
+# Unreleased
+* __[BUGFIX]__ Handle open pull request events.
+
 # Farcy 1.3.0 (October 8, 2018)
 * __[FEATURE]__ Ignore PRs which contain "farcy: ignore" in the PR description.
 
