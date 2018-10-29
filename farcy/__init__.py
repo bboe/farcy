@@ -353,6 +353,7 @@ class Farcy(object):
                                  .format(branch))
         elif action == 'opened':
             self.open_prs[branch] = pr
+            pr.refresh()
             self.handle_pr(pr)
         elif action == 'reopened':
             self.open_prs[branch] = pr
