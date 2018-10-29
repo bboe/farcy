@@ -139,7 +139,7 @@ class PatchFunctionTest(unittest.TestCase):
                          helpers.added_lines('@@+1\n+wah\n@@+15\n+foo'))
 
     def test_added_lines_works_with_github_no_newline_message(self):
-        patch = """@@ -0,0 +1,5 @@
+        patch = r"""@@ -0,0 +1,5 @@
 +class SomeClass
 +  def yo(some_unused_param)
 +    puts 'hi'
