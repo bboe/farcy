@@ -261,8 +261,8 @@ class Farcy(object):
             try:
                 newest_id = self._event_loop(itr, events)
             except (ConnectionError, ServerError) as exc:
-                self.log.error('Error in event generation loop: {0}'
-                               .format(exc))
+                self.log.exception('Error in event generation loop: {0}'
+                                   .format(exc))
                 sleep_time = 1
                 continue
 
@@ -383,10 +383,13 @@ class Farcy(object):
                     attempts = 0
                 except Exception as exc:
                     attempts -= 1
-                    self.log.error('Error with event ({0}): {1}'
-                                   .format(event, exc))
-                    self.log.info('Retrying {0} more time(s).'
-                                  .format(attempts))
+                    message = 'Error with event ({0}): {1}'.format(event, exc)
+                    if attemps > 0:
+                        self.log.error(message)
+                        self.log.info('Retrying {0} more time(s).'
+                                      .format(attempts))
+                    else:
+                        self.log.exception(message)
 
 
 def main():
