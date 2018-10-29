@@ -11,7 +11,7 @@ MD_VERSION_STR = ('[farcy v{0}](https://github.com/appfolio/farcy)'
 
 FARCY_COMMENT_START = '_{0}_'.format(MD_VERSION_STR)
 
-NUMBER_RE = re.compile('(\d+)')
+NUMBER_RE = re.compile(r'(\d+)')
 
 APPROVAL_PHRASES = [x.strip() for x in """
 Amazing

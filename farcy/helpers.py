@@ -24,7 +24,7 @@ def added_lines(patch):
         elif line.startswith('+'):
             added[lineno] = position
             lineno += 1
-        elif line == "\ No newline at end of file":
+        elif line == r'\ No newline at end of file':
             continue
         else:
             assert line.startswith('-')

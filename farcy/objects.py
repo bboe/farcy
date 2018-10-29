@@ -195,7 +195,7 @@ class ErrorTracker(object):
     """Track ErrorMessages across multiple files."""
 
     FARCY_PREFIX = FARCY_COMMENT_START.split('v')[0]
-    GROUP_MATCH = re.compile('(.+) <sub>(\d+)x spanning \d+ lines</sub>')
+    GROUP_MATCH = re.compile(r'(.+) <sub>(\d+)x spanning \d+ lines</sub>')
 
     @classmethod
     def _parse_group_message(cls, message):

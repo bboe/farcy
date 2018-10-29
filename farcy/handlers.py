@@ -179,7 +179,7 @@ class Flake8(ExtHandler):
     BINARY = 'flake8'
     BINARY_VERSION = '2.4.1'
     EXTENSIONS = ['.py']
-    RE = re.compile('[^:]+:(\d+):([^\n]+)\n')
+    RE = re.compile(r'[^:]+:(\d+):([^\n]+)\n')
 
     def _process(self, filename):
         config_path = self.config_file_path
@@ -197,7 +197,7 @@ class JSXHint(ExtHandler):
     BINARY = 'jsxhint'
     BINARY_VERSION = '0.15.0'
     EXTENSIONS = ['.jsx', '.js']
-    RE = re.compile('.*:(\d+):\d+: (.*)\n')
+    RE = re.compile(r'.*:(\d+):\d+: (.*)\n')
 
     def _process(self, filename):
         command = ['--reporter', 'unix']
@@ -217,7 +217,7 @@ class Pep257(ExtHandler):
     BINARY = 'pep257'
     BINARY_VERSION = '0.5.0'
     EXTENSIONS = ['.py']
-    RE = re.compile('[^:]+:(\d+)[^\n]+\n\s+([^\n]+)\n')
+    RE = re.compile(r'[^:]+:(\d+)[^\n]+\n\s+([^\n]+)\n')
 
     def _process(self, filename):
         return self._regex_parse([filename], stderr=STDOUT)

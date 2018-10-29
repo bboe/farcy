@@ -384,7 +384,7 @@ class Farcy(object):
                 except Exception as exc:
                     attempts -= 1
                     message = 'Error with event ({0}): {1}'.format(event, exc)
-                    if attemps > 0:
+                    if attempts > 0:
                         self.log.error(message)
                         self.log.info('Retrying {0} more time(s).'
                                       .format(attempts))
