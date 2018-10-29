@@ -302,7 +302,7 @@ class FarcyEventCallbackTest(FarcyBaseTest):
         instance = self._farcy_instance()
         instance.open_prs = {'DUMMY_BRANCH': None}
 
-        pull_request = Struct(head=Struct(ref='DUMMY_BRANCH'), number=1337)
+        pull_request = Struct(head={'ref': 'DUMMY_BRANCH'}, number=1337)
         event = Struct(payload={'action': 'closed',
                                 'pull_request': pull_request})
 
@@ -316,7 +316,7 @@ class FarcyEventCallbackTest(FarcyBaseTest):
         instance.log = MagicMock()
         self.assertEqual({}, instance.open_prs)
 
-        pull_request = Struct(head=Struct(ref='DUMMY_BRANCH'), number=1337)
+        pull_request = Struct(head={'ref': 'DUMMY_BRANCH'}, number=1337)
         event = Struct(payload={'action': 'closed',
                                 'pull_request': pull_request})
 
@@ -330,7 +330,7 @@ class FarcyEventCallbackTest(FarcyBaseTest):
         instance = self._farcy_instance()
         self.assertEqual({}, instance.open_prs)
 
-        pull_request = Struct(head=Struct(ref='DUMMY_BRANCH'), number=1337)
+        pull_request = Struct(head={'ref': 'DUMMY_BRANCH'}, number=1337)
         event = Struct(payload={'action': 'opened',
                                 'pull_request': pull_request})
 
@@ -343,7 +343,7 @@ class FarcyEventCallbackTest(FarcyBaseTest):
         instance = self._farcy_instance()
         self.assertEqual({}, instance.open_prs)
 
-        pull_request = Struct(head=Struct(ref='DUMMY_BRANCH'), number=1337)
+        pull_request = Struct(head={'ref': 'DUMMY_BRANCH'}, number=1337)
         event = Struct(payload={'action': 'reopened',
                                 'pull_request': pull_request})
 
