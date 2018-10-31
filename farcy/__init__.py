@@ -351,9 +351,11 @@ class Farcy(object):
             else:
                 self.log.warning('open_prs did not contain {0}'
                                  .format(branch))
-        elif action == 'opened':
+            return
+
+        pr = pr.refresh()
+        if action == 'opened':
             self.open_prs[branch] = pr
-            pr.refresh()
             self.handle_pr(pr)
         elif action == 'reopened':
             self.open_prs[branch] = pr
