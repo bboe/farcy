@@ -159,9 +159,10 @@ class Farcy(object):
                 .format(pr.number, pr.state))
 
     def _fail_ignore(self, pr):
-        if 'farcy: ignore' not in pr.body.lower():
-            return None
-        return 'Skipping PR#{0}. Explicit ignore requested.'.format(pr.number)
+        if pr.body and 'farcy: ignore' in pr.body.lower():
+            return 'Skipping PR#{0}. Explicit ignore requested.'.format(
+                pr.number)
+        return None
 
     def _get_state(self, issues, exception):
         if exception:
