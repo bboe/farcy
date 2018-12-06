@@ -234,7 +234,8 @@ class ErrorTracker(object):
         for comment in comments:
             if not comment.body.startswith(self.FARCY_PREFIX):
                 continue
-            if comment.position == 0:
+            assert comment.position != 0
+            if comment.position is None:
                 self.hidden_issue_count += 1
                 continue
             self.github_message_count += 1
