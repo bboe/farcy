@@ -287,7 +287,10 @@ class Farcy(object):
 
         try:
             tmpdir = mkdtemp()
-            filepath = os.path.join(tmpdir, os.path.basename(pfile.filename))
+            path_in_repo = os.path.dirname(pfile.filename)
+            full_dir = os.path.join(tmpdir, path_in_repo)
+            os.makedirs(full_dir, exist_ok=True)
+            filepath = os.path.join(full_dir, os.path.basename(pfile.filename))
             with open(filepath, 'wb') as fp:
                 fp.write(pfile.contents().decoded)
             for handler in handlers:

@@ -124,6 +124,12 @@ class FarcyTest(FarcyBaseTest):
                           filename='a.py')
         self.assertEqual({}, farcy.get_issues(pfile))
 
+    def test_get_issues__leverage_file_path_in_repo(self):
+        farcy = self._farcy_instance()
+        pfile = mockpfile(contents=lambda: MockInfo(decoded=b'"""A."""\n'),
+                          filename='app/controllers/a.py')
+        self.assertEqual({}, farcy.get_issues(pfile))
+
     def test_get_issues__no_handlers(self):
         farcy = self._farcy_instance()
         self.assertEqual({}, farcy.get_issues(mockpfile(filename='')))
