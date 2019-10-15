@@ -6,7 +6,7 @@ from datetime import datetime
 from farcy import (Config, FARCY_COMMENT_START, Farcy, FarcyException, UTC,
                    main, no_handler_debug_factory)
 from mock import MagicMock, call, patch
-from requests import ConnectionError
+from github3.exceptions import ConnectionError
 import farcy as farcy_module
 import logging
 import unittest
