@@ -33,7 +33,9 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from docopt import docopt
 from fnmatch import fnmatch
-from github3.exceptions import ConnectionError, ServerError, UnprocessableEntity
+from github3.exceptions import (
+    ConnectionError, ServerError, UnprocessableEntity
+)
 from random import choice
 from shutil import rmtree
 from tempfile import mkdtemp

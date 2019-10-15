@@ -14,5 +14,5 @@ class Struct(object):
         return self._iterable[index]
 
     def refresh(self):
-        """Dummy function to reload this instance"""
+        """Dummy function to reload this instance."""
         return self
