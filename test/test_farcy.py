@@ -6,7 +6,7 @@ from datetime import datetime
 from farcy import (Config, FARCY_COMMENT_START, Farcy, FarcyException, UTC,
                    main, no_handler_debug_factory)
 from mock import MagicMock, call, patch
-from requests import ConnectionError
+from github3.exceptions import ConnectionError
 import farcy as farcy_module
 import logging
 import unittest
@@ -122,6 +122,12 @@ class FarcyTest(FarcyBaseTest):
         farcy = self._farcy_instance()
         pfile = mockpfile(contents=lambda: MockInfo(decoded=b'"""A."""\n'),
                           filename='a.py')
+        self.assertEqual({}, farcy.get_issues(pfile))
+
+    def test_get_issues__leverage_file_path_in_repo(self):
+        farcy = self._farcy_instance()
+        pfile = mockpfile(contents=lambda: MockInfo(decoded=b'"""A."""\n'),
+                          filename='app/controllers/a.py')
         self.assertEqual({}, farcy.get_issues(pfile))
 
     def test_get_issues__no_handlers(self):

@@ -33,7 +33,9 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from docopt import docopt
 from fnmatch import fnmatch
-from github3.exceptions import ConnectionError, ServerError, UnprocessableEntity
+from github3.exceptions import (
+    ConnectionError, ServerError, UnprocessableEntity
+)
 from random import choice
 from shutil import rmtree
 from tempfile import mkdtemp
@@ -287,7 +289,10 @@ class Farcy(object):
 
         try:
             tmpdir = mkdtemp()
-            filepath = os.path.join(tmpdir, os.path.basename(pfile.filename))
+            path_in_repo = os.path.dirname(pfile.filename)
+            full_dir = os.path.join(tmpdir, path_in_repo)
+            os.makedirs(full_dir, exist_ok=True)
+            filepath = os.path.join(full_dir, os.path.basename(pfile.filename))
             with open(filepath, 'wb') as fp:
                 fp.write(pfile.contents().decoded)
             for handler in handlers:
