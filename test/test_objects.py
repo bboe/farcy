@@ -284,7 +284,7 @@ class ErrorTrackerTest(unittest.TestCase):
 
     def test_only_hidden_issues(self):
         comment = Struct(body='_[farcy \n* MatchingError', path='DummyFile',
-                         position=0)
+                         position=None)
         self.tracker.from_github_comments([comment])
 
         self.assertEqual(0, self.tracker.github_message_count)

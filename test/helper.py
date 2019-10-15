@@ -12,3 +12,7 @@ class Struct(object):
     def __getitem__(self, index):
         """Return the value of the attribute ``index``."""
         return self._iterable[index]
+
+    def refresh(self):
+        """Dummy function to reload this instance"""
+        return self

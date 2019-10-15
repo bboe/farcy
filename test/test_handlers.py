@@ -178,7 +178,7 @@ class RubocopTest(FarcyTest):
            Uses config to disable 1 issue.
         """
         errors = self.linter.process(self.path('single_issue.rb'))
-        self.assertEqual({3: [('Style/DefWithParentheses: Omit the parentheses'
+        self.assertEqual({5: [('Style/DefWithParentheses: Omit the parentheses'
                                ' in defs when the method doesn\'t accept any '
                                'arguments.')]},
                          errors)
