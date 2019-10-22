@@ -118,17 +118,22 @@ class FarcyTest(FarcyBaseTest):
             self.assertTrue(mock_critical.called)
         self.assertEqual({}, stats)
 
-    def test_get_issues__simple_module(self):
+    @patch('farcy.Farcy.fetch_source_rubocop')
+    def test_get_issues__simple_module(self, mock_fetch_source_rubocop):
         farcy = self._farcy_instance()
         pfile = mockpfile(contents=lambda: MockInfo(decoded=b'"""A."""\n'),
                           filename='a.py')
         self.assertEqual({}, farcy.get_issues(pfile))
+        self.assertTrue(mock_fetch_source_rubocop.called)
 
-    def test_get_issues__leverage_file_path_in_repo(self):
+    @patch('farcy.Farcy.fetch_source_rubocop')
+    def test_get_issues__leverage_file_path_in_repo(self,
+                                                    mock_fetch_source_rubocop):
         farcy = self._farcy_instance()
         pfile = mockpfile(contents=lambda: MockInfo(decoded=b'"""A."""\n'),
                           filename='app/controllers/a.py')
         self.assertEqual({}, farcy.get_issues(pfile))
+        self.assertTrue(mock_fetch_source_rubocop.called)
 
     def test_get_issues__no_handlers(self):
         farcy = self._farcy_instance()
