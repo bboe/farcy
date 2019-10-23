@@ -29,7 +29,6 @@ Options:
 """
 
 from __future__ import print_function
-from base64 import b64decode
 from collections import Counter, defaultdict
 from datetime import datetime
 from docopt import docopt
@@ -294,25 +293,15 @@ class Farcy(object):
             full_dir = os.path.join(tmpdir, path_in_repo)
             os.makedirs(full_dir, exist_ok=True)
             filepath = os.path.join(full_dir, os.path.basename(pfile.filename))
-            self.fetch_source_rubocop(tmpdir)
             with open(filepath, 'wb') as fp:
                 fp.write(pfile.contents().decoded)
             for handler in handlers:
+                handler.prepare_directory(tmpdir, self.repo)
                 retval.update(handler.process(fp.name))
         finally:
             rmtree(tmpdir)
 
         return retval
-
-    def fetch_source_rubocop(self, temp_dir):
-        """Fetch the apm_bundle root .rubocop.yml config file."""
-        rubocop_yaml_url = "{}/contents/.rubocop.yml?ref=master".format(self.repo.url)  # noqa: E501
-        response = self.repo._get(rubocop_yaml_url).json()
-        file_contents = b64decode(response["content"]).decode('utf-8')
-
-        filepath = os.path.join(temp_dir, response["name"])
-        with open(filepath, 'w+') as fp:
-            fp.write(file_contents)
 
     def handle_pr(self, pr, force=False):
         """Provide code review on pull request."""

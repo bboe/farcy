@@ -1,6 +1,7 @@
 """Defines handlers for various file types."""
 
 from __future__ import print_function
+from base64 import b64decode
 from collections import defaultdict
 from subprocess import CalledProcessError, STDOUT, check_output
 from update_checker import parse_version
@@ -118,6 +119,31 @@ class ExtHandler(object):
             raise  # Unexpected and unhandled exception
         self.verify_version(self.version_callback(version))
 
+    def prepare_directory(self, temp_dir, repo):
+        """Perform any preprocessing before linting.
+
+        For example, for ruby files we fetch the root config from
+        the github repository and place it at the top level
+        of the temp directory
+
+        :param temp_dir: The temporary directory we're using
+        :param     repo: Repository object
+
+        """
+        # This method should not be implemented by a subclass. Use
+        # _prepare_directory instead.
+        if not self._plugin_ready:
+            try:
+                self.assert_usable()
+                self._plugin_ready = True
+            except HandlerNotReady as exc:
+                self._logger.warning('{0} is not ready: {1}'
+                                     .format(self.name, exc.message))
+                return
+
+        self._prepare_directory(temp_dir, repo)
+        return
+
     def process(self, filename):
         """Return a dictionary mapping line numbers to errors.
 
@@ -152,6 +178,9 @@ class ESLint(ExtHandler):
     BINARY_VERSION = '1.1.0'
     EXTENSIONS = ['.js', '.jsx']
 
+    def _prepare_directory(self, tmpdir, repo):
+        return
+
     def _process(self, filename):
         command = [self.BINARY, '--format', 'json']
         config_path = self.config_file_path
@@ -181,6 +210,9 @@ class Flake8(ExtHandler):
     EXTENSIONS = ['.py']
     RE = re.compile(r'[^:]+:(\d+):([^\n]+)\n')
 
+    def _prepare_directory(self, tmpdir, repo):
+        return
+
     def _process(self, filename):
         config_path = self.config_file_path
         command = ['--config', config_path] if config_path else []
@@ -198,6 +230,9 @@ class JSXHint(ExtHandler):
     BINARY_VERSION = '0.15.0'
     EXTENSIONS = ['.jsx', '.js']
     RE = re.compile(r'.*:(\d+):\d+: (.*)\n')
+
+    def _prepare_directory(self, tmpdir, repo):
+        return
 
     def _process(self, filename):
         command = ['--reporter', 'unix']
@@ -219,6 +254,9 @@ class Pep257(ExtHandler):
     EXTENSIONS = ['.py']
     RE = re.compile(r'[^:]+:(\d+)[^\n]+\n\s+([^\n]+)\n')
 
+    def _prepare_directory(self, tmpdir, repo):
+        return
+
     def _process(self, filename):
         return self._regex_parse([filename], stderr=STDOUT)
 
@@ -229,6 +267,16 @@ class Rubocop(ExtHandler):
     BINARY = 'rubocop'
     BINARY_VERSION = '0.50'
     EXTENSIONS = ['.rb']
+
+    def _prepare_directory(self, temp_dir, repo):
+        rubocop_yaml_url = "{}/contents/.rubocop.yml?ref=master".format(repo.url)  # noqa: E501
+        response = repo._get(rubocop_yaml_url).json()
+        file_contents = b64decode(response["content"]).decode('utf-8')
+
+        filepath = os.path.join(temp_dir, response["name"])
+        with open(filepath, 'w') as fp:
+            fp.write(file_contents)
+        return
 
     def _process(self, filename):
         command = [self.BINARY, '-f', 'j']
@@ -249,6 +297,9 @@ class SCSSLint(ExtHandler):
     BINARY = 'scss-lint'
     BINARY_VERSION = '0.43.2'
     EXTENSIONS = ['.css', '.scss']
+
+    def _prepare_directory(self, tmpdir, repo):
+        return
 
     def _process(self, filename):
         command = [self.BINARY, '-f', 'JSON']

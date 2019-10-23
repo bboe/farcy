@@ -118,22 +118,24 @@ class FarcyTest(FarcyBaseTest):
             self.assertTrue(mock_critical.called)
         self.assertEqual({}, stats)
 
-    @patch('farcy.Farcy.fetch_source_rubocop')
-    def test_get_issues__simple_module(self, mock_fetch_source_rubocop):
+    def test_get_issues__simple_module(self):
         farcy = self._farcy_instance()
         pfile = mockpfile(contents=lambda: MockInfo(decoded=b'"""A."""\n'),
                           filename='a.py')
         self.assertEqual({}, farcy.get_issues(pfile))
-        self.assertTrue(mock_fetch_source_rubocop.called)
 
-    @patch('farcy.Farcy.fetch_source_rubocop')
+    @patch('farcy.handlers.Rubocop.prepare_directory')
     def test_get_issues__leverage_file_path_in_repo(self,
-                                                    mock_fetch_source_rubocop):
+                                                    mock_prepare_directory):
         farcy = self._farcy_instance()
-        pfile = mockpfile(contents=lambda: MockInfo(decoded=b'"""A."""\n'),
-                          filename='app/controllers/a.py')
+        pfile = mockpfile(
+            contents=lambda: MockInfo(
+                decoded=b'# frozen_string_literal: true\n'
+            ),
+            filename='app/controllers/a.rb'
+        )
         self.assertEqual({}, farcy.get_issues(pfile))
-        self.assertTrue(mock_fetch_source_rubocop.called)
+        self.assertTrue(mock_prepare_directory.called)
 
     def test_get_issues__no_handlers(self):
         farcy = self._farcy_instance()
