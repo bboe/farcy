@@ -306,7 +306,7 @@ class Farcy(object):
 
     def fetch_source_rubocop(self, temp_dir):
         """Fetch the apm_bundle root .rubocop.yml config file."""
-        rubocop_yaml_url = 'https://api.github.com/repos/appfolio/apm_bundle/contents/.rubocop.yml?ref=master'  # noqa: E501
+        rubocop_yaml_url = "{}/contents/.rubocop.yml?ref=master".format(self.repo.url)  # noqa: E501
         response = self.repo._get(rubocop_yaml_url).json()
         file_contents = b64decode(response["content"]).decode('utf-8')
 
