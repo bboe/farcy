@@ -308,10 +308,10 @@ class Farcy(object):
         """Fetch the apm_bundle root .rubocop.yml config file."""
         rubocop_yaml_url = 'https://api.github.com/repos/appfolio/apm_bundle/contents/.rubocop.yml?ref=master'  # noqa: E501
         response = self.repo._get(rubocop_yaml_url).json()
-        file_contents = b64decode(response["content"])
+        file_contents = b64decode(response["content"]).decode('utf-8')
 
         filepath = os.path.join(temp_dir, response["name"])
-        with open(filepath, 'wb') as fp:
+        with open(filepath, 'w+') as fp:
             fp.write(file_contents)
 
     def handle_pr(self, pr, force=False):
