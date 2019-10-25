@@ -179,7 +179,7 @@ class Farcy(object):
             return False
 
         try:
-            file_issues = self.get_issues(pfile)
+            file_issues = self.get_issues(pfile, pr)
         except Exception:
             self.log.exception('Failure with get_issues for {0}'
                                .format(pfile.filename))
@@ -278,7 +278,7 @@ class Farcy(object):
             sleep_time = int(itr.last_response.headers.get('X-Poll-Interval',
                                                            sleep_time))
 
-    def get_issues(self, pfile):
+    def get_issues(self, pfile, pr):
         """Return a dictionary of issues for the file."""
         ext = os.path.splitext(pfile.filename)[1]
         handlers = self._ext_to_handler.get(ext)
@@ -296,6 +296,7 @@ class Farcy(object):
             with open(filepath, 'wb') as fp:
                 fp.write(pfile.contents().decoded)
             for handler in handlers:
+                handler.prepare_directory(tmpdir, self.repo, pr)
                 retval.update(handler.process(fp.name))
         finally:
             rmtree(tmpdir)
