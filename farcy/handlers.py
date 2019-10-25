@@ -119,7 +119,7 @@ class ExtHandler(object):
             raise  # Unexpected and unhandled exception
         self.verify_version(self.version_callback(version))
 
-    def prepare_directory(self, temp_dir, repo):
+    def prepare_directory(self, temp_dir, repo, pr):
         """Perform any preprocessing before linting.
 
         For example, for ruby files we fetch the root config from
@@ -141,7 +141,7 @@ class ExtHandler(object):
                                      .format(self.name, exc.message))
                 return
 
-        self._prepare_directory(temp_dir, repo)
+        self._prepare_directory(temp_dir, repo, pr)
         return
 
     def process(self, filename):
@@ -178,7 +178,7 @@ class ESLint(ExtHandler):
     BINARY_VERSION = '1.1.0'
     EXTENSIONS = ['.js', '.jsx']
 
-    def _prepare_directory(self, tmpdir, repo):
+    def _prepare_directory(self, temp_dir, repo, pr):
         return
 
     def _process(self, filename):
@@ -210,7 +210,7 @@ class Flake8(ExtHandler):
     EXTENSIONS = ['.py']
     RE = re.compile(r'[^:]+:(\d+):([^\n]+)\n')
 
-    def _prepare_directory(self, tmpdir, repo):
+    def _prepare_directory(self, temp_dir, repo, pr):
         return
 
     def _process(self, filename):
@@ -231,7 +231,7 @@ class JSXHint(ExtHandler):
     EXTENSIONS = ['.jsx', '.js']
     RE = re.compile(r'.*:(\d+):\d+: (.*)\n')
 
-    def _prepare_directory(self, tmpdir, repo):
+    def _prepare_directory(self, temp_dir, repo, pr):
         return
 
     def _process(self, filename):
@@ -254,7 +254,7 @@ class Pep257(ExtHandler):
     EXTENSIONS = ['.py']
     RE = re.compile(r'[^:]+:(\d+)[^\n]+\n\s+([^\n]+)\n')
 
-    def _prepare_directory(self, tmpdir, repo):
+    def _prepare_directory(self, temp_dir, repo, pr):
         return
 
     def _process(self, filename):
@@ -268,8 +268,8 @@ class Rubocop(ExtHandler):
     BINARY_VERSION = '0.50'
     EXTENSIONS = ['.rb']
 
-    def _prepare_directory(self, temp_dir, repo):
-        rubocop_yaml_url = "{}/contents/.rubocop.yml?ref=master".format(repo.url)  # noqa: E501
+    def _prepare_directory(self, temp_dir, repo, pr):
+        rubocop_yaml_url = "{}/contents/.rubocop.yml?ref={}".format(repo.url, pr.head.ref)  # noqa: E501
         response = repo._get(rubocop_yaml_url).json()
         file_contents = b64decode(response["content"]).decode('utf-8')
 
@@ -298,7 +298,7 @@ class SCSSLint(ExtHandler):
     BINARY_VERSION = '0.43.2'
     EXTENSIONS = ['.css', '.scss']
 
-    def _prepare_directory(self, tmpdir, repo):
+    def _prepare_directory(self, temp_dir, repo, pr):
         return
 
     def _process(self, filename):

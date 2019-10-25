@@ -122,7 +122,8 @@ class FarcyTest(FarcyBaseTest):
         farcy = self._farcy_instance()
         pfile = mockpfile(contents=lambda: MockInfo(decoded=b'"""A."""\n'),
                           filename='a.py')
-        self.assertEqual({}, farcy.get_issues(pfile))
+        pr = MagicMock(number=444, state='open', user=Struct(login='Dummy'))
+        self.assertEqual({}, farcy.get_issues(pfile, pr))
 
     @patch('farcy.handlers.Rubocop.prepare_directory')
     def test_get_issues__leverage_file_path_in_repo(self,
@@ -134,12 +135,13 @@ class FarcyTest(FarcyBaseTest):
             ),
             filename='app/controllers/a.rb'
         )
-        self.assertEqual({}, farcy.get_issues(pfile))
+        pr = MagicMock(number=444, state='open', user=Struct(login='Dummy'))
+        self.assertEqual({}, farcy.get_issues(pfile, pr))
         self.assertTrue(mock_prepare_directory.called)
 
     def test_get_issues__no_handlers(self):
         farcy = self._farcy_instance()
-        self.assertEqual({}, farcy.get_issues(mockpfile(filename='')))
+        self.assertEqual({}, farcy.get_issues(mockpfile(filename=''), None))
 
 
 class FarcyHandlePrTest(FarcyBaseTest):
@@ -169,7 +171,7 @@ class FarcyHandlePrTest(FarcyBaseTest):
                               'handler. Check log.'))
 
         mock_added_lines.assert_called_with('')
-        mock_get_issues.assert_called_once_with(pfile)
+        mock_get_issues.assert_called_once_with(pfile, pr)
         assert_calls(farcy.repo.create_status,
                      call('dummy', 'pending', context='farcy',
                           description='started investigation'),
@@ -206,7 +208,7 @@ class FarcyHandlePrTest(FarcyBaseTest):
                          call('PR#180 STATUS: found 1 issue'))
 
         mock_added_lines.assert_called_with('')
-        mock_get_issues.assert_called_once_with(pfile)
+        mock_get_issues.assert_called_once_with(pfile, pr)
         assert_calls(pr.create_review_comment, call(
             '{0}\n* Dummy Failure'.format(FARCY_COMMENT_START),
             'dummy', 'DummyFile', 16))
@@ -240,7 +242,7 @@ class FarcyHandlePrTest(FarcyBaseTest):
                          call('PR#180   skipped_issues: 1'))
 
         mock_added_lines.assert_called_with('')
-        mock_get_issues.assert_called_once_with(pfile)
+        mock_get_issues.assert_called_once_with(pfile, pr)
         assert_calls(pr.create_review_comment)
         assert_status(farcy, failures=1)
 
@@ -263,7 +265,7 @@ class FarcyHandlePrTest(FarcyBaseTest):
                          call('PR#180 STATUS: approves! Dummy Approval!'))
 
         mock_added_lines.assert_called_with('')
-        mock_get_issues.assert_called_once_with(pfile)
+        mock_get_issues.assert_called_once_with(pfile, pr)
         assert_calls(pr.create_review_comment)
         assert_status(farcy)
 
