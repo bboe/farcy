@@ -279,10 +279,10 @@ class Rubocop(ExtHandler):
         return
 
     def _process(self, filename):
-        command = [self.BINARY, '-f', 'j']
+        command = [self.BINARY, '--cache=false', '--format=j']
         config_path = self.config_file_path
         if config_path:
-            command += ['-c', config_path]
+            command += ['--config', config_path]
 
         data = json.loads(self.execute(command + [filename]))
         retval = defaultdict(list)
