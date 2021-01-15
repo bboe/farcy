@@ -7,9 +7,12 @@ matrix:
 sudo: false
 cache: pip
 install:
-  - pip install coveralls flake8 pep257
-  - npm install -g eslint
-  - gem install rubocop scss_lint
+  - pip install coveralls
+  - pip install flake8==2.4.1
+  - pip install pep257==0.5.0
+  - npm install -g eslint@1.1.0
+  - gem install rubocop -v 0.50
+  - gem install scss_lint -v 0.43.2
 script:
   - flake8
   - pep257
